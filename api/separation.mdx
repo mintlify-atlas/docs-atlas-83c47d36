@@ -1,0 +1,255 @@
+---
+title: Source Separation
+description: API reference for audio source separation features
+icon: layer-group
+---
+
+<Warning>
+  **Coming Soon - Planned for v0.6.0**
+
+  Source Separation is not yet implemented. This page documents the planned API interface.
+</Warning>
+
+## Overview
+
+Source Separation will enable automatic separation of different audio sources from mixed recordings. This feature can isolate vocals, instruments, or other sound sources, useful for:
+
+- Extracting vocals from music
+- Isolating speech from background music
+- Karaoke applications
+- Audio remixing and production
+- Removing background music from voice recordings
+
+## Types
+
+### SeparationInitializeOptions
+
+Configuration options for initializing the separation module.
+
+<ParamField path="modelPath" type="ModelPathConfig" required>
+  Path configuration for the separation model directory.
+
+  ```typescript
+  {
+    type: 'auto' | 'asset' | 'file',
+    path: string
+  }
+  ```
+</ParamField>
+
+### SeparatedSource
+
+Represents a separated audio source.
+
+<ResponseField name="sourceId" type="string" required>
+  Identifier for the separated source (e.g., "vocals", "instruments", "source_0").
+</ResponseField>
+
+<ResponseField name="outputPath" type="string" required>
+  Path to the separated audio file for this source.
+</ResponseField>
+
+## Functions
+
+### initializeSeparation
+
+Initialize the Source Separation module with a model.
+
+```typescript
+async function initializeSeparation(
+  options: SeparationInitializeOptions
+): Promise<void>
+```
+
+<ParamField path="options" type="SeparationInitializeOptions" required>
+  Configuration options including model path.
+</ParamField>
+
+**Example (Planned)**
+
+```typescript
+import { initializeSeparation } from 'react-native-sherpa-onnx/separation';
+
+await initializeSeparation({
+  modelPath: {
+    type: 'auto',
+    path: 'models/separation-model'
+  }
+});
+```
+
+**Throws**
+
+- Currently throws "Source Separation feature is not yet implemented" error
+
+---
+
+### separateSources
+
+Separate audio sources from a mixed audio file.
+
+```typescript
+function separateSources(
+  filePath: string
+): Promise<SeparatedSource[]>
+```
+
+<ParamField path="filePath" type="string" required>
+  Path to the mixed audio file to process.
+</ParamField>
+
+**Returns**
+
+Promise resolving to an array of separated sources with source IDs and output paths.
+
+**Example (Planned)**
+
+```typescript
+import { separateSources } from 'react-native-sherpa-onnx/separation';
+
+const sources = await separateSources('mixed-audio.wav');
+
+for (const source of sources) {
+  console.log(`${source.sourceId}: ${source.outputPath}`);
+}
+```
+
+**Throws**
+
+- Currently throws "Source Separation feature is not yet implemented" error
+
+---
+
+### unloadSeparation
+
+Release separation resources and clean up.
+
+```typescript
+function unloadSeparation(): Promise<void>
+```
+
+**Example (Planned)**
+
+```typescript
+import { unloadSeparation } from 'react-native-sherpa-onnx/separation';
+
+await unloadSeparation();
+```
+
+**Throws**
+
+- Currently throws "Source Separation feature is not yet implemented" error
+
+## Planned Usage Flow
+
+Once implemented, the typical workflow will be:
+
+```typescript
+import {
+  initializeSeparation,
+  separateSources,
+  unloadSeparation
+} from 'react-native-sherpa-onnx/separation';
+
+// 1. Initialize separation
+await initializeSeparation({
+  modelPath: { type: 'auto', path: 'models/separation-model' }
+});
+
+// 2. Separate audio sources
+const sources = await separateSources('mixed-audio.wav');
+
+console.log(`Separated ${sources.length} sources:`);
+for (const source of sources) {
+  console.log(`  - ${source.sourceId}: ${source.outputPath}`);
+}
+
+// 3. Clean up
+await unloadSeparation();
+```
+
+## Use Cases
+
+### Extract Vocals for Transcription
+
+Separate vocals from background music before speech recognition:
+
+```typescript
+// Planned integration
+const sources = await separateSources('song-with-speech.wav');
+const vocals = sources.find(s => s.sourceId === 'vocals');
+
+if (vocals) {
+  const transcript = await transcribeFile(vocals.outputPath);
+  console.log('Lyrics:', transcript.text);
+}
+```
+
+### Karaoke Application
+
+Remove vocals to create instrumental tracks:
+
+```typescript
+const sources = await separateSources('original-song.wav');
+const instrumental = sources.find(
+  s => s.sourceId === 'instruments' || s.sourceId === 'accompaniment'
+);
+
+if (instrumental) {
+  console.log('Instrumental track:', instrumental.outputPath);
+}
+```
+
+### Audio Cleanup
+
+Isolate speech from background noise:
+
+```typescript
+await initializeSeparation({
+  modelPath: { type: 'auto', path: 'models/speech-separation' }
+});
+
+const sources = await separateSources('noisy-recording.wav');
+const speech = sources.find(s => s.sourceId === 'speech');
+
+if (speech) {
+  // Use clean speech for transcription
+  const result = await transcribeFile(speech.outputPath);
+}
+```
+
+### Batch Processing
+
+Process multiple files:
+
+```typescript
+const files = ['song1.wav', 'song2.wav', 'song3.wav'];
+
+await initializeSeparation({
+  modelPath: { type: 'auto', path: 'models/separation' }
+});
+
+for (const file of files) {
+  const sources = await separateSources(file);
+  console.log(`${file}: separated into ${sources.length} sources`);
+}
+
+await unloadSeparation();
+```
+
+## Model Support
+
+The separation feature will support both `.tar.bz2` archive models and standalone `.onnx` models, as indicated by the model download configuration:
+
+```typescript
+// From ModelDownloadManager.ts:492
+case ModelCategory.Separation:
+  return ext === 'tar.bz2' || ext === 'onnx';
+```
+
+## See Also
+
+- [Model Download Manager](/api/download) - Download separation models
+- [Enhancement](/api/enhancement) - Noise reduction (also planned)
+- [Audio Utilities](/api/audio) - Audio conversion and processing
+- [Speech Recognition](/api/stt) - Transcribe separated sources

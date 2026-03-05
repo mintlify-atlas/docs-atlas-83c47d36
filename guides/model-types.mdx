@@ -1,0 +1,408 @@
+---
+title: Model Types
+description: Comprehensive guide to supported Speech-to-Text and Text-to-Speech models
+---
+
+## Overview
+
+React Native Sherpa ONNX supports automatic model type detection based on files present in each model directory. No specific folder naming convention is required.
+
+## Speech-to-Text (STT) Models
+
+### Zipformer/Transducer
+
+<Card title="Encoder-Decoder-Joiner Architecture" icon="microphone">
+  Good balance of speed and accuracy. Supports streaming recognition.
+</Card>
+
+- **Model Type Value**: `'transducer'`
+- **Architecture**: Encoder–decoder–joiner (icefall)
+- **Auto-detection**: Folder name contains **zipformer** or **transducer**
+- **Streaming**: ✅ Supported
+- **Download**: [Offline Transducer Models](https://k2-fsa.github.io/sherpa/onnx/pretrained_models/offline-transducer/index.html)
+
+### LSTM Transducer
+
+- **Model Type Value**: `'transducer'`
+- **Architecture**: LSTM-based streaming ASR
+- **Auto-detection**: Folder name contains **lstm**
+- **Streaming**: ✅ Supported
+- **Download**: [LSTM Transducer Models](https://k2-fsa.github.io/sherpa/onnx/pretrained_models/online-transducer/lstm-transducer-models.html)
+
+### Paraformer
+
+<Card title="Fast Non-Autoregressive ASR" icon="bolt">
+  Single-model architecture offering high speed and accuracy.
+</Card>
+
+- **Model Type Value**: `'paraformer'`
+- **Architecture**: Single-model non-autoregressive ASR
+- **Auto-detection**: Detected by `model.onnx` presence
+- **Streaming**: ✅ Supported
+- **Download**: [Paraformer Models](https://k2-fsa.github.io/sherpa/onnx/pretrained_models/offline-paraformer/index.html)
+
+### Whisper
+
+<Card title="Multilingual Speech Recognition" icon="language">
+  Strong zero-shot performance across 99 languages.
+</Card>
+
+- **Model Type Value**: `'whisper'`
+- **Architecture**: Encoder–decoder (multilingual)
+- **Auto-detection**: Encoder + decoder files (no joiner)
+- **Streaming**: ❌ Offline only
+- **Languages**: 99+ languages supported
+- **Download**: [Whisper Models](https://k2-fsa.github.io/sherpa/onnx/pretrained_models/whisper/index.html)
+
+**Available Models**:
+- `whisper-tiny` (39M) - Fastest, English/multilingual
+- `whisper-base` (74M) - Balanced
+- `whisper-small` (244M) - Better accuracy
+- `whisper-medium` (769M) - High accuracy
+- `whisper-large` (1550M) - Best accuracy
+
+### NeMo CTC
+
+- **Model Type Value**: `'nemo_ctc'`
+- **Architecture**: NVIDIA NeMo CTC
+- **Auto-detection**: Folder name contains **nemo** or **parakeet**
+- **Streaming**: ✅ Supported
+- **Best for**: English and streaming applications
+- **Download**: [NeMo CTC Models](https://k2-fsa.github.io/sherpa/onnx/pretrained_models/offline-ctc/nemo/index.html)
+
+### WeNet CTC
+
+- **Model Type Value**: `'wenet_ctc'`
+- **Architecture**: WeNet CTC (compact)
+- **Auto-detection**: Folder name contains **wenet**
+- **Streaming**: ✅ Supported
+- **Download**: [WeNet Models](https://k2-fsa.github.io/sherpa/onnx/pretrained_models/offline-ctc/wenet/index.html)
+
+### SenseVoice
+
+<Card title="Emotion and Punctuation Detection" icon="face-smile">
+  Multilingual ASR with built-in emotion recognition and punctuation.
+</Card>
+
+- **Model Type Value**: `'sense_voice'`
+- **Architecture**: Multilingual with emotion/punctuation
+- **Auto-detection**: Folder name contains **sense** or **sensevoice**
+- **Features**:
+  - Emotion recognition
+  - Automatic punctuation
+  - Event detection
+- **Download**: [SenseVoice Models](https://k2-fsa.github.io/sherpa/onnx/pretrained_models/sense-voice/index.html)
+
+### FunASR Nano
+
+- **Model Type Value**: `'funasr_nano'`
+- **Architecture**: Lightweight LLM-based ASR
+- **Auto-detection**: Folder name contains **funasr** or **funasr-nano**
+- **Download**: [FunASR Nano](https://k2-fsa.github.io/sherpa/onnx/pretrained_models/funasr-nano/index.html)
+
+### Moonshine v1
+
+- **Model Type Value**: `'moonshine'`
+- **Architecture**: Four-part streaming-capable (preprocess, encode, uncached/cached decode)
+- **Auto-detection**: Folder name contains **moonshine**
+- **Streaming**: ✅ Supported
+- **Download**: [Moonshine Models](https://k2-fsa.github.io/sherpa/onnx/moonshine/index.html)
+
+### Moonshine v2
+
+- **Model Type Value**: `'moonshine_v2'`
+- **Architecture**: Two-part (encoder + merged decoder)
+- **Format**: `.onnx` or `.ort`
+- **Auto-detection**: Folder name contains **moonshine** (v2 preferred)
+- **Streaming**: ✅ Supported
+- **Download**: [Moonshine Models](https://k2-fsa.github.io/sherpa/onnx/moonshine/index.html)
+
+### Additional STT Models
+
+| Model Type | Value | Description | Auto-Detection |
+|------------|-------|-------------|----------------|
+| **Fire Red ASR** | `'fire_red_asr'` | Fire Red encoder–decoder ASR | Folder contains **fire_red** or **fire-red** |
+| **Dolphin** | `'dolphin'` | Single-model CTC | Folder contains **dolphin** |
+| **Canary** | `'canary'` | NeMo Canary multilingual | Folder contains **canary** |
+| **Omnilingual** | `'omnilingual'` | Omnilingual CTC | Folder contains **omnilingual** |
+| **MedASR** | `'medasr'` | Medical ASR CTC | Folder contains **medasr** |
+| **Telespeech CTC** | `'telespeech_ctc'` | Telespeech CTC | Folder contains **telespeech** |
+| **Tone CTC** | `'tone_ctc'` | Lightweight streaming CTC (t-one) | Folder contains **t-one**, **t_one**, or **tone** |
+
+### Streaming-Capable Models
+
+For **real-time recognition** from microphone or audio stream:
+
+<CardGroup cols={3}>
+  <Card title="Transducer" icon="stream">
+    Zipformer, LSTM, NeMo
+  </Card>
+  <Card title="Paraformer" icon="stream">
+    Non-autoregressive
+  </Card>
+  <Card title="CTC Models" icon="stream">
+    NeMo CTC, WeNet, Tone
+  </Card>
+</CardGroup>
+
+See [Streaming Speech-to-Text documentation](https://github.com/k2-fsa/sherpa-onnx/blob/master/docs/stt_streaming.md).
+
+## Text-to-Speech (TTS) Models
+
+### VITS
+
+<Card title="Fast High-Quality TTS" icon="volume-high">
+  Supports Piper, Coqui, MeloTTS, and MMS models.
+</Card>
+
+- **Model Type Value**: `'vits'`
+- **Auto-detection**: Folder name contains **vits** (when used with other models)
+- **Streaming**: ✅ Supported
+- **Variants**:
+  - **Piper** - Lightweight, many voices
+  - **Coqui** - High quality, expressive
+  - **MeloTTS** - Multilingual
+  - **MMS** - Meta's Massively Multilingual Speech
+- **Download**: [VITS Models](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models)
+
+**Example Models**:
+```
+vits-piper-en_US-lessac-low (16MB) - English, low quality, fast
+vits-piper-en_US-lessac-medium (63MB) - English, medium quality
+vits-piper-en_US-libritts_r-medium (63MB) - English, LibriTTS
+vits-melo-tts-zh_en (220MB) - Chinese + English
+```
+
+### Matcha
+
+<Card title="Acoustic Model + Vocoder" icon="waveform-lines">
+  High-quality acoustic model with separate vocoder.
+</Card>
+
+- **Model Type Value**: `'matcha'`
+- **Architecture**: Acoustic model + vocoder
+- **Auto-detection**: Detected by `acoustic_model` + `vocoder` files
+- **Streaming**: ✅ Supported
+- **Download**: [Matcha Models](https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/matcha.html)
+
+### Kokoro
+
+<Card title="Multi-Speaker Multi-Language" icon="users">
+  Support for multiple speakers and languages.
+</Card>
+
+- **Model Type Value**: `'kokoro'`
+- **Auto-detection**: Folder name contains **kokoro** (not kitten)
+- **Streaming**: ✅ Supported
+- **Features**: Multi-speaker, multi-language
+- **Download**: [Kokoro Models](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models)
+
+### KittenTTS
+
+- **Model Type Value**: `'kitten'`
+- **Auto-detection**: Folder name contains **kitten** (not kokoro)
+- **Streaming**: ✅ Supported
+- **Features**: Lightweight, multi-speaker
+- **Download**: [Kitten Models](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models)
+
+### Zipvoice
+
+<Card title="Voice Cloning" icon="clone">
+  Clone voices from reference audio samples.
+</Card>
+
+- **Model Type Value**: `'zipvoice'`
+- **Architecture**: Encoder + decoder + vocoder
+- **Auto-detection**: Detected by file layout
+- **Streaming**: ✅ Supported
+- **Features**: Voice cloning with reference audio
+- **Download**: [Zipvoice Models](https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/zipvoice.html)
+
+**Usage Example**:
+```typescript
+const audio = await tts.generateSpeech('Hello world', {
+  referenceAudio: '/path/to/voice/sample.wav',
+  referenceText: 'Transcript of the sample',
+  sid: 0,
+  speed: 1.0,
+});
+```
+
+### Pocket
+
+- **Model Type Value**: `'pocket'`
+- **Architecture**: Flow-matching TTS
+- **Auto-detection**: Files include `lm_flow`, `lm_main`, `text_conditioner`, `vocab/token_scores`
+- **Streaming**: ✅ Supported
+- **Download**: [Pocket Models](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models)
+
+## Model Auto-Detection
+
+### Detection API
+
+Check model type without initialization:
+
+```typescript
+import { detectSttModel } from 'react-native-sherpa-onnx/stt';
+import { detectTtsModel } from 'react-native-sherpa-onnx/tts';
+
+// STT model detection
+const sttResult = await detectSttModel(
+  { type: 'asset', path: 'models/whisper-tiny-en' },
+  { modelType: 'auto', preferInt8: true }
+);
+
+if (sttResult.success) {
+  console.log('Detected type:', sttResult.modelType); // 'whisper'
+}
+
+// TTS model detection
+const ttsResult = await detectTtsModel(
+  { type: 'asset', path: 'models/vits-piper-en' },
+  { modelType: 'auto' }
+);
+
+if (ttsResult.success) {
+  console.log('Detected type:', ttsResult.modelType); // 'vits'
+}
+```
+
+### Auto-Detection Rules
+
+The SDK detects model types based on:
+
+1. **File presence** (e.g., `encoder.onnx`, `decoder.onnx`, `tokens.txt`)
+2. **Folder name tokens** (e.g., **whisper**, **vits**, **paraformer**)
+3. **File combinations** (e.g., encoder+decoder+joiner = transducer)
+
+<Note>
+**Folder names are hints only**. The primary detection is based on files present in the directory.
+</Note>
+
+## Quantization (int8)
+
+Many models are available in quantized int8 format:
+
+- **Smaller size**: ~75% reduction
+- **Faster inference**: Especially on CPU
+- **Minimal accuracy loss**: Usually less than 1% WER difference
+
+### Using Quantized Models
+
+```typescript
+import { createSTT } from 'react-native-sherpa-onnx/stt';
+
+const stt = await createSTT({
+  modelPath: { type: 'asset', path: 'models/whisper-tiny-en' },
+  modelType: 'auto',
+  preferInt8: true, // Use int8 if available
+});
+```
+
+If both `model.onnx` and `model.int8.onnx` exist:
+- `preferInt8: true` → uses `model.int8.onnx`
+- `preferInt8: false` → uses `model.onnx`
+- `preferInt8: undefined` → tries int8 first (default)
+
+## Model Download Links
+
+### STT Model Collections
+
+<CardGroup cols={2}>
+  <Card title="Transducer Models" icon="download" href="https://k2-fsa.github.io/sherpa/onnx/pretrained_models/offline-transducer/index.html">
+    Zipformer and transducer models
+  </Card>
+  <Card title="Whisper Models" icon="download" href="https://k2-fsa.github.io/sherpa/onnx/pretrained_models/whisper/index.html">
+    All Whisper variants (tiny to large)
+  </Card>
+  <Card title="Paraformer Models" icon="download" href="https://k2-fsa.github.io/sherpa/onnx/pretrained_models/offline-paraformer/index.html">
+    Fast non-autoregressive models
+  </Card>
+  <Card title="CTC Models" icon="download" href="https://k2-fsa.github.io/sherpa/onnx/pretrained_models/offline-ctc/index.html">
+    NeMo CTC, WeNet, and others
+  </Card>
+</CardGroup>
+
+### TTS Model Collections
+
+<CardGroup cols={2}>
+  <Card title="VITS Models" icon="download" href="https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models">
+    Piper, Coqui, MeloTTS, MMS
+  </Card>
+  <Card title="Matcha Models" icon="download" href="https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/matcha.html">
+    High-quality acoustic models
+  </Card>
+  <Card title="Kokoro & Kitten" icon="download" href="https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models">
+    Multi-speaker models
+  </Card>
+  <Card title="Zipvoice" icon="download" href="https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/zipvoice.html">
+    Voice cloning models
+  </Card>
+</CardGroup>
+
+## Unsupported Hardware-Specific Models
+
+<Warning>
+Models built for specific hardware are **not supported** in React Native:
+</Warning>
+
+- **Rockchip RK35xx** (rk3588)
+- **Huawei Ascend/CANN** (910B, 310P3)
+- **OM-format models**
+
+Detection API returns:
+```typescript
+{
+  success: false,
+  isHardwareSpecificUnsupported: true,
+  error: "Model requires unsupported hardware (RK35xx/Ascend/etc)"
+}
+```
+
+## Model File Requirements
+
+### STT Model Files
+
+**Transducer/Zipformer**:
+- `encoder.onnx` (or `encoder.int8.onnx`)
+- `decoder.onnx` (or `decoder.int8.onnx`)
+- `joiner.onnx` (or `joiner.int8.onnx`)
+- `tokens.txt`
+
+**Whisper**:
+- `encoder.onnx`
+- `decoder.onnx`
+- `tokens.txt`
+
+**Paraformer**:
+- `model.onnx` (or `model.int8.onnx`)
+- `tokens.txt`
+
+### TTS Model Files
+
+**VITS**:
+- `model.onnx` (or `vits-*.onnx`)
+- `tokens.txt`
+- `lexicon.txt` (optional)
+
+**Matcha**:
+- `acoustic_model.onnx`
+- `vocoder.onnx`
+- `tokens.txt`
+
+**Zipvoice**:
+- `encoder.onnx`
+- `decoder.onnx`
+- `vocoder.onnx`
+- `tokens.txt`
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Performance Tips" icon="gauge" href="/guides/performance">
+    Optimize model size and execution speed
+  </Card>
+  <Card title="Android Setup" icon="android" href="/guides/android-setup">
+    Configure execution providers
+  </Card>
+</CardGroup>

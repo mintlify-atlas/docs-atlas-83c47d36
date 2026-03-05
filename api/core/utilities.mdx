@@ -1,0 +1,436 @@
+---
+title: 'Utilities'
+description: 'Core utility functions for model path handling and system capabilities'
+---
+
+## Model Path Utilities
+
+### assetModelPath
+
+Create a model path configuration for asset models bundled in your app's assets.
+
+```typescript
+function assetModelPath(assetPath: string): ModelPathConfig
+```
+
+<ParamField path="assetPath" type="string" required>
+  Path relative to assets directory (e.g., "models/sherpa-onnx-model")
+</ParamField>
+
+<ResponseField name="return" type="ModelPathConfig">
+  Model path configuration object with `type: 'asset'` and the specified path
+</ResponseField>
+
+**Example:**
+```typescript
+import { assetModelPath } from 'react-native-sherpa-onnx';
+
+const config = assetModelPath('models/sherpa-onnx-streaming-zipformer-en-2023-06-26');
+// Returns: { type: 'asset', path: 'models/sherpa-onnx-streaming-zipformer-en-2023-06-26' }
+```
+
+---
+
+### fileModelPath
+
+Create a model path configuration for file system models (downloaded or stored locally).
+
+```typescript
+function fileModelPath(filePath: string): ModelPathConfig
+```
+
+<ParamField path="filePath" type="string" required>
+  Absolute path to model directory. On iOS, use an absolute path from react-native-fs (e.g., `DocumentDirectoryPath + '/models/' + modelName`)
+</ParamField>
+
+<ResponseField name="return" type="ModelPathConfig">
+  Model path configuration object with `type: 'file'` and the specified path
+</ResponseField>
+
+**Example:**
+```typescript
+import { fileModelPath } from 'react-native-sherpa-onnx';
+import { DocumentDirectoryPath } from 'react-native-fs';
+
+const config = fileModelPath(`${DocumentDirectoryPath}/models/my-model`);
+// Returns: { type: 'file', path: '/path/to/Documents/models/my-model' }
+```
+
+---
+
+### autoModelPath
+
+Create a model path configuration with auto-detection. Tries asset first, then file system.
+
+```typescript
+function autoModelPath(path: string): ModelPathConfig
+```
+
+<ParamField path="path" type="string" required>
+  Path to try (will be checked as both asset and file)
+</ParamField>
+
+<ResponseField name="return" type="ModelPathConfig">
+  Model path configuration object with `type: 'auto'` and the specified path
+</ResponseField>
+
+**Example:**
+```typescript
+import { autoModelPath } from 'react-native-sherpa-onnx';
+
+const config = autoModelPath('models/sherpa-onnx-model');
+// Returns: { type: 'auto', path: 'models/sherpa-onnx-model' }
+```
+
+---
+
+### resolveModelPath
+
+Resolve model path based on configuration. Handles different path types (asset, file, auto) and returns a platform-specific absolute path that can be used by native code.
+
+```typescript
+function resolveModelPath(config: ModelPathConfig): Promise<string>
+```
+
+<ParamField path="config" type="ModelPathConfig" required>
+  Model path configuration created by `assetModelPath`, `fileModelPath`, or `autoModelPath`
+</ParamField>
+
+<ResponseField name="return" type="Promise<string>">
+  Absolute path usable by native code
+</ResponseField>
+
+**Example:**
+```typescript
+import { assetModelPath, resolveModelPath } from 'react-native-sherpa-onnx';
+
+const config = assetModelPath('models/my-model');
+const absolutePath = await resolveModelPath(config);
+console.log(absolutePath); // e.g., "/data/user/0/com.myapp/files/models/my-model" on Android
+```
+
+---
+
+### listAssetModels
+
+List all model folders in the assets/models directory. Scans the platform-specific model directory and returns folder names. Useful for discovering models at runtime without hardcoding paths.
+
+```typescript
+function listAssetModels(): Promise<Array<{ folder: string; hint: 'stt' | 'tts' | 'unknown' }>>
+```
+
+<ResponseField name="return" type="Promise<Array<{ folder: string; hint: string }>>">
+  Array of model info objects with folder names and type hints
+  
+  <ResponseField name="folder" type="string">
+    Model folder name
+  </ResponseField>
+  
+  <ResponseField name="hint" type="'stt' | 'tts' | 'unknown'">
+    Detected model type hint
+  </ResponseField>
+</ResponseField>
+
+**Example:**
+```typescript
+import { listAssetModels, resolveModelPath } from 'react-native-sherpa-onnx';
+
+// Get all model folders
+const models = await listAssetModels();
+console.log('Found models:', models);
+// Example output: [
+//   { folder: 'sherpa-onnx-streaming-zipformer-en-2023-06-26', hint: 'stt' },
+//   { folder: 'sherpa-onnx-matcha-icefall-en_US-ljspeech', hint: 'tts' }
+// ]
+
+// Initialize each model to detect types
+for (const model of models) {
+  const path = await resolveModelPath({ type: 'asset', path: `models/${model.folder}` });
+  // Use path with createSTT or createTTS
+}
+```
+
+---
+
+### listModelsAtPath
+
+List model folders under a specific filesystem path. When recursive is true, returns relative folder paths under the base path.
+
+```typescript
+function listModelsAtPath(
+  path: string,
+  recursive?: boolean
+): Promise<Array<{ folder: string; hint: 'stt' | 'tts' | 'unknown' }>>
+```
+
+<ParamField path="path" type="string" required>
+  Filesystem path to search for models
+</ParamField>
+
+<ParamField path="recursive" type="boolean" default={false}>
+  Whether to search recursively in subdirectories
+</ParamField>
+
+<ResponseField name="return" type="Promise<Array<{ folder: string; hint: string }>>">
+  Array of model info objects with folder names and type hints
+  
+  <ResponseField name="folder" type="string">
+    Model folder name (or relative path if recursive)
+  </ResponseField>
+  
+  <ResponseField name="hint" type="'stt' | 'tts' | 'unknown'">
+    Detected model type hint
+  </ResponseField>
+</ResponseField>
+
+**Example:**
+```typescript
+import { listModelsAtPath } from 'react-native-sherpa-onnx';
+import { DocumentDirectoryPath } from 'react-native-fs';
+
+const models = await listModelsAtPath(`${DocumentDirectoryPath}/models`, true);
+console.log('Found models:', models);
+```
+
+---
+
+### getAssetPackPath
+
+**Play Asset Delivery (PAD):** Returns the path to the models directory inside an Android asset pack, or null if the pack is not available. Use this to list and load models delivered via PAD (e.g., pack "sherpa_models"). On iOS returns null.
+
+```typescript
+function getAssetPackPath(packName: string): Promise<string | null>
+```
+
+<ParamField path="packName" type="string" required>
+  Name of the Android asset pack
+</ParamField>
+
+<ResponseField name="return" type="Promise<string | null>">
+  Filesystem path to the asset pack's models directory, or null if not available
+</ResponseField>
+
+**Example:**
+```typescript
+import { getAssetPackPath, listModelsAtPath } from 'react-native-sherpa-onnx';
+
+const packPath = await getAssetPackPath('sherpa_models');
+if (packPath) {
+  const models = await listModelsAtPath(packPath, true);
+  console.log('Models in asset pack:', models);
+}
+```
+
+---
+
+### getDefaultModelPath
+
+Get the default model directory path for the current platform. This is a logical name (e.g., `'Documents/models'` on iOS), not an absolute path. On iOS, when using file-based models without PAD, pass an absolute base path to `fileModelPath` instead (e.g., `DocumentDirectoryPath + '/models'` from react-native-fs).
+
+```typescript
+function getDefaultModelPath(): string
+```
+
+<ResponseField name="return" type="string">
+  Platform-specific default path:
+  - iOS: `'Documents/models'`
+  - Android: `'models'`
+</ResponseField>
+
+**Example:**
+```typescript
+import { getDefaultModelPath } from 'react-native-sherpa-onnx';
+
+const defaultPath = getDefaultModelPath();
+console.log(defaultPath); // "Documents/models" on iOS, "models" on Android
+```
+
+---
+
+## System Capabilities
+
+### testSherpaInit
+
+Test method to verify sherpa-onnx native library is loaded.
+
+```typescript
+function testSherpaInit(): Promise<string>
+```
+
+<ResponseField name="return" type="Promise<string>">
+  Success message if library is loaded correctly
+</ResponseField>
+
+**Example:**
+```typescript
+import { testSherpaInit } from 'react-native-sherpa-onnx';
+
+try {
+  const result = await testSherpaInit();
+  console.log('Sherpa ONNX loaded:', result);
+} catch (error) {
+  console.error('Failed to load Sherpa ONNX:', error);
+}
+```
+
+---
+
+### getQnnSupport
+
+**QNN support (Android).** Check if Qualcomm QNN acceleration is available. Optional modelBase64 for canInit (session test); if omitted, SDK uses embedded test model.
+
+```typescript
+function getQnnSupport(modelBase64?: string): Promise<AccelerationSupport>
+```
+
+<ParamField path="modelBase64" type="string" optional>
+  Optional base64-encoded model for session initialization test. If omitted, uses embedded test model.
+</ParamField>
+
+<ResponseField name="return" type="Promise<AccelerationSupport>">
+  Object indicating QNN support status
+  
+  <ResponseField name="providerCompiled" type="boolean">
+    Whether QNN execution provider is compiled into ONNX Runtime
+  </ResponseField>
+  
+  <ResponseField name="hasAccelerator" type="boolean">
+    Whether Qualcomm NPU hardware is present
+  </ResponseField>
+  
+  <ResponseField name="canInit" type="boolean">
+    Whether a session can be initialized with QNN provider
+  </ResponseField>
+</ResponseField>
+
+**Example:**
+```typescript
+import { getQnnSupport } from 'react-native-sherpa-onnx';
+
+const qnnSupport = await getQnnSupport();
+console.log('QNN support:', qnnSupport);
+// { providerCompiled: true, hasAccelerator: true, canInit: true }
+```
+
+---
+
+### getNnapiSupport
+
+**NNAPI support (Android).** Check if Android Neural Networks API acceleration is available. Optional modelBase64 for canInit (session test). On iOS returns all false.
+
+```typescript
+function getNnapiSupport(modelBase64?: string): Promise<AccelerationSupport>
+```
+
+<ParamField path="modelBase64" type="string" optional>
+  Optional base64-encoded model for session initialization test. If omitted, uses embedded test model.
+</ParamField>
+
+<ResponseField name="return" type="Promise<AccelerationSupport>">
+  Object indicating NNAPI support status
+  
+  <ResponseField name="providerCompiled" type="boolean">
+    Whether NNAPI execution provider is compiled into ONNX Runtime
+  </ResponseField>
+  
+  <ResponseField name="hasAccelerator" type="boolean">
+    Whether NNAPI hardware acceleration is available
+  </ResponseField>
+  
+  <ResponseField name="canInit" type="boolean">
+    Whether a session can be initialized with NNAPI provider
+  </ResponseField>
+</ResponseField>
+
+---
+
+### getXnnpackSupport
+
+**XNNPACK support.** Check if XNNPACK CPU-optimized execution is available. hasAccelerator = true when providerCompiled (CPU-optimized). Optional modelBase64 for canInit. On iOS returns all false.
+
+```typescript
+function getXnnpackSupport(modelBase64?: string): Promise<AccelerationSupport>
+```
+
+<ParamField path="modelBase64" type="string" optional>
+  Optional base64-encoded model for session initialization test. If omitted, uses embedded test model.
+</ParamField>
+
+<ResponseField name="return" type="Promise<AccelerationSupport>">
+  Object indicating XNNPACK support status
+  
+  <ResponseField name="providerCompiled" type="boolean">
+    Whether XNNPACK execution provider is compiled into ONNX Runtime
+  </ResponseField>
+  
+  <ResponseField name="hasAccelerator" type="boolean">
+    Same as providerCompiled for XNNPACK (CPU-optimized)
+  </ResponseField>
+  
+  <ResponseField name="canInit" type="boolean">
+    Whether a session can be initialized with XNNPACK provider
+  </ResponseField>
+</ResponseField>
+
+---
+
+### getCoreMlSupport
+
+**Core ML support (iOS).** Check if Apple Core ML acceleration is available. providerCompiled = true (Core ML on iOS 11+), hasAccelerator = Apple Neural Engine. Optional modelBase64 for canInit. On Android returns all false.
+
+```typescript
+function getCoreMlSupport(modelBase64?: string): Promise<AccelerationSupport>
+```
+
+<ParamField path="modelBase64" type="string" optional>
+  Optional base64-encoded model for session initialization test. If omitted, uses embedded test model.
+</ParamField>
+
+<ResponseField name="return" type="Promise<AccelerationSupport>">
+  Object indicating Core ML support status
+  
+  <ResponseField name="providerCompiled" type="boolean">
+    Whether Core ML execution provider is available (iOS 11+)
+  </ResponseField>
+  
+  <ResponseField name="hasAccelerator" type="boolean">
+    Whether Apple Neural Engine hardware is present
+  </ResponseField>
+  
+  <ResponseField name="canInit" type="boolean">
+    Whether a session can be initialized with Core ML provider
+  </ResponseField>
+</ResponseField>
+
+**Example:**
+```typescript
+import { getCoreMlSupport } from 'react-native-sherpa-onnx';
+
+const coreMLSupport = await getCoreMlSupport();
+console.log('Core ML support:', coreMLSupport);
+// iOS: { providerCompiled: true, hasAccelerator: true, canInit: true }
+// Android: { providerCompiled: false, hasAccelerator: false, canInit: false }
+```
+
+---
+
+### getAvailableProviders
+
+Return the list of available ONNX Runtime execution providers (e.g., "CPU", "NNAPI", "QNN", "XNNPACK"). Requires the ORT Java bridge from the onnxruntime AAR.
+
+```typescript
+function getAvailableProviders(): Promise<string[]>
+```
+
+<ResponseField name="return" type="Promise<string[]>">
+  Array of available execution provider names
+</ResponseField>
+
+**Example:**
+```typescript
+import { getAvailableProviders } from 'react-native-sherpa-onnx';
+
+const providers = await getAvailableProviders();
+console.log('Available providers:', providers);
+// Example: ["CPU", "NNAPI", "QNN", "XNNPACK"]
+```

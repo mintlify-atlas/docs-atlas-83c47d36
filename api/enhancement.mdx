@@ -1,0 +1,215 @@
+---
+title: Speech Enhancement
+description: API reference for speech enhancement features
+icon: sparkles
+---
+
+<Warning>
+  **Coming Soon - Planned for v0.5.0**
+
+  Speech Enhancement is not yet implemented. This page documents the planned API interface.
+</Warning>
+
+## Overview
+
+Speech Enhancement will enable automatic noise reduction and audio quality improvement for speech recordings. This feature is useful for:
+
+- Removing background noise from recordings
+- Improving speech clarity in noisy environments
+- Pre-processing audio before speech recognition
+- Enhancing call quality
+
+## Types
+
+### EnhancementInitializeOptions
+
+Configuration options for initializing the enhancement module.
+
+<ParamField path="modelPath" type="ModelPathConfig" required>
+  Path configuration for the enhancement model directory.
+
+  ```typescript
+  {
+    type: 'auto' | 'asset' | 'file',
+    path: string
+  }
+  ```
+</ParamField>
+
+### EnhancementResult
+
+Result of the enhancement process.
+
+<ResponseField name="outputPath" type="string" required>
+  Path to the enhanced audio file.
+</ResponseField>
+
+## Functions
+
+### initializeEnhancement
+
+Initialize the Speech Enhancement module with a model.
+
+```typescript
+async function initializeEnhancement(
+  options: EnhancementInitializeOptions
+): Promise<void>
+```
+
+<ParamField path="options" type="EnhancementInitializeOptions" required>
+  Configuration options including model path.
+</ParamField>
+
+**Example (Planned)**
+
+```typescript
+import { initializeEnhancement } from 'react-native-sherpa-onnx/enhancement';
+
+await initializeEnhancement({
+  modelPath: {
+    type: 'auto',
+    path: 'models/enhancement-model'
+  }
+});
+```
+
+**Throws**
+
+- Currently throws "Speech Enhancement feature is not yet implemented" error
+
+---
+
+### enhanceAudio
+
+Enhance speech quality in an audio file by reducing noise and improving clarity.
+
+```typescript
+function enhanceAudio(
+  filePath: string
+): Promise<EnhancementResult>
+```
+
+<ParamField path="filePath" type="string" required>
+  Path to the noisy audio file to enhance.
+</ParamField>
+
+**Returns**
+
+Promise resolving to an enhancement result containing the output file path.
+
+**Example (Planned)**
+
+```typescript
+import { enhanceAudio } from 'react-native-sherpa-onnx/enhancement';
+
+const result = await enhanceAudio('noisy-recording.wav');
+console.log('Enhanced audio saved to:', result.outputPath);
+```
+
+**Throws**
+
+- Currently throws "Speech Enhancement feature is not yet implemented" error
+
+---
+
+### unloadEnhancement
+
+Release enhancement resources and clean up.
+
+```typescript
+function unloadEnhancement(): Promise<void>
+```
+
+**Example (Planned)**
+
+```typescript
+import { unloadEnhancement } from 'react-native-sherpa-onnx/enhancement';
+
+await unloadEnhancement();
+```
+
+**Throws**
+
+- Currently throws "Speech Enhancement feature is not yet implemented" error
+
+## Planned Usage Flow
+
+Once implemented, the typical workflow will be:
+
+```typescript
+import {
+  initializeEnhancement,
+  enhanceAudio,
+  unloadEnhancement
+} from 'react-native-sherpa-onnx/enhancement';
+
+// 1. Initialize enhancement
+await initializeEnhancement({
+  modelPath: { type: 'auto', path: 'models/enhancement-model' }
+});
+
+// 2. Enhance noisy audio
+const result = await enhanceAudio('noisy-audio.wav');
+
+console.log('Original:', 'noisy-audio.wav');
+console.log('Enhanced:', result.outputPath);
+
+// 3. Clean up
+await unloadEnhancement();
+```
+
+## Use Cases
+
+### Pre-processing for STT
+
+Enhance audio quality before speech recognition:
+
+```typescript
+// Planned integration
+const enhanced = await enhanceAudio('noisy-meeting.wav');
+const transcript = await transcribeFile(enhanced.outputPath);
+```
+
+### Batch Processing
+
+Enhance multiple recordings:
+
+```typescript
+const recordings = ['call1.wav', 'call2.wav', 'call3.wav'];
+
+await initializeEnhancement({
+  modelPath: { type: 'auto', path: 'models/enhancement' }
+});
+
+for (const file of recordings) {
+  const result = await enhanceAudio(file);
+  console.log(`Enhanced: ${file} -> ${result.outputPath}`);
+}
+
+await unloadEnhancement();
+```
+
+### Real-time Enhancement
+
+For live audio enhancement, the API may be extended with streaming support:
+
+```typescript
+// Potential future API
+const enhancer = await createRealtimeEnhancer({
+  modelPath: { type: 'auto', path: 'models/enhancement' },
+  sampleRate: 16000
+});
+
+enhancer.onEnhanced((samples) => {
+  // Enhanced audio samples
+});
+
+await enhancer.start();
+```
+
+## See Also
+
+- [Model Download Manager](/api/download) - Download enhancement models
+- [Audio Utilities](/api/audio) - Audio conversion and processing
+- [Speech Recognition](/api/stt) - Use enhanced audio for better transcription
+- [VAD](/api/vad) - Voice activity detection (also planned)

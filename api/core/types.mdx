@@ -1,0 +1,194 @@
+---
+title: 'Types'
+description: 'Core TypeScript types and interfaces'
+---
+
+## Model Path Configuration
+
+### ModelPathConfig
+
+Union type for model path configuration options. Used to specify where models are located (assets, filesystem, or auto-detect).
+
+```typescript
+type ModelPathConfig =
+  | {
+      type: 'asset';
+      path: string;
+    }
+  | {
+      type: 'file';
+      path: string;
+    }
+  | {
+      type: 'auto';
+      path: string;
+    };
+```
+
+<ResponseField name="ModelPathConfig" type="union">
+  Model path configuration object
+  
+  <ResponseField name="type: 'asset'" type="object">
+    Model is bundled in app assets
+    
+    <ResponseField name="type" type="'asset'" required>
+      Path type indicator
+    </ResponseField>
+    
+    <ResponseField name="path" type="string" required>
+      Path relative to assets directory
+      - **iOS:** Bundle path (e.g., "models/sherpa-onnx-model")
+      - **Android:** Asset path (e.g., "models/sherpa-onnx-model")
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="type: 'file'" type="object">
+    Model is in file system
+    
+    <ResponseField name="type" type="'file'" required>
+      Path type indicator
+    </ResponseField>
+    
+    <ResponseField name="path" type="string" required>
+      Absolute path to model directory
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="type: 'auto'" type="object">
+    Automatically detect path type (tries asset first, then file system)
+    
+    <ResponseField name="type" type="'auto'" required>
+      Path type indicator
+    </ResponseField>
+    
+    <ResponseField name="path" type="string" required>
+      Path to try (will be checked as both asset and file)
+    </ResponseField>
+  </ResponseField>
+</ResponseField>
+
+**Usage:**
+
+```typescript
+import { assetModelPath, fileModelPath, autoModelPath } from 'react-native-sherpa-onnx';
+import type { ModelPathConfig } from 'react-native-sherpa-onnx';
+
+// Asset path
+const assetConfig: ModelPathConfig = assetModelPath('models/my-model');
+// Returns: { type: 'asset', path: 'models/my-model' }
+
+// File path
+const fileConfig: ModelPathConfig = fileModelPath('/absolute/path/to/model');
+// Returns: { type: 'file', path: '/absolute/path/to/model' }
+
+// Auto-detect
+const autoConfig: ModelPathConfig = autoModelPath('models/my-model');
+// Returns: { type: 'auto', path: 'models/my-model' }
+```
+
+---
+
+## Hardware Acceleration
+
+### AccelerationSupport
+
+Unified shape for all acceleration backends (QNN, NNAPI, XNNPACK, Core ML). Indicates whether a hardware acceleration provider is available and functional.
+
+```typescript
+type AccelerationSupport = {
+  providerCompiled: boolean;
+  hasAccelerator: boolean;
+  canInit: boolean;
+};
+```
+
+<ResponseField name="AccelerationSupport" type="object">
+  Acceleration support status object
+  
+  <ResponseField name="providerCompiled" type="boolean" required>
+    Whether the execution provider is compiled into ONNX Runtime
+    - **QNN:** QNN provider is built into the library
+    - **NNAPI:** NNAPI provider is built into the library
+    - **XNNPACK:** XNNPACK provider is built into the library
+    - **Core ML:** Core ML provider is available (iOS 11+)
+  </ResponseField>
+  
+  <ResponseField name="hasAccelerator" type="boolean" required>
+    Whether hardware acceleration is present
+    - **QNN:** Qualcomm NPU hardware is present
+    - **NNAPI:** NNAPI hardware acceleration is available
+    - **XNNPACK:** Same as providerCompiled (CPU-optimized)
+    - **Core ML:** Apple Neural Engine is present
+  </ResponseField>
+  
+  <ResponseField name="canInit" type="boolean" required>
+    Whether a session can be initialized with this provider
+    - Tested with a model (provided or embedded test model)
+    - True if the provider can successfully create an inference session
+  </ResponseField>
+</ResponseField>
+
+**Usage:**
+
+```typescript
+import { getQnnSupport, getNnapiSupport, getXnnpackSupport, getCoreMlSupport } from 'react-native-sherpa-onnx';
+import type { AccelerationSupport } from 'react-native-sherpa-onnx';
+
+// Check QNN support (Qualcomm NPU on Android)
+const qnnSupport: AccelerationSupport = await getQnnSupport();
+if (qnnSupport.providerCompiled && qnnSupport.hasAccelerator && qnnSupport.canInit) {
+  console.log('QNN acceleration is fully supported');
+}
+
+// Check NNAPI support (Android Neural Networks API)
+const nnapiSupport: AccelerationSupport = await getNnapiSupport();
+
+// Check XNNPACK support (CPU-optimized)
+const xnnpackSupport: AccelerationSupport = await getXnnpackSupport();
+
+// Check Core ML support (Apple Neural Engine on iOS)
+const coreMLSupport: AccelerationSupport = await getCoreMlSupport();
+if (coreMLSupport.hasAccelerator) {
+  console.log('Apple Neural Engine is available');
+}
+```
+
+**Example Response:**
+
+```typescript
+// On Android device with Qualcomm NPU
+{
+  providerCompiled: true,  // QNN is built in
+  hasAccelerator: true,    // NPU hardware detected
+  canInit: true            // Can create QNN session
+}
+
+// On iOS device with Neural Engine
+{
+  providerCompiled: true,  // Core ML is available
+  hasAccelerator: true,    // Neural Engine detected
+  canInit: true            // Can create Core ML session
+}
+
+// On unsupported platform
+{
+  providerCompiled: false,
+  hasAccelerator: false,
+  canInit: false
+}
+```
+
+---
+
+## Related Functions
+
+These types are used with the following utility functions:
+
+- [`assetModelPath`](/api/core/utilities#assetmodelpath) - Create asset path configuration
+- [`fileModelPath`](/api/core/utilities#filemodelpath) - Create file path configuration  
+- [`autoModelPath`](/api/core/utilities#automodelpath) - Create auto-detect path configuration
+- [`resolveModelPath`](/api/core/utilities#resolvemodelpath) - Resolve path to absolute path
+- [`getQnnSupport`](/api/core/utilities#getqnnsupport) - Check QNN acceleration
+- [`getNnapiSupport`](/api/core/utilities#getnnapisupport) - Check NNAPI acceleration
+- [`getXnnpackSupport`](/api/core/utilities#getxnnpacksupport) - Check XNNPACK acceleration
+- [`getCoreMlSupport`](/api/core/utilities#getcoremlsupport) - Check Core ML acceleration

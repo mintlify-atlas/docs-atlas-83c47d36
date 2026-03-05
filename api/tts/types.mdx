@@ -1,0 +1,552 @@
+---
+title: "TTS Types"
+description: "TypeScript type definitions for React Native Sherpa ONNX TTS"
+---
+
+## TTSModelType
+
+Supported TTS model types.
+
+```typescript
+type TTSModelType =
+  | 'vits'
+  | 'matcha'
+  | 'kokoro'
+  | 'kitten'
+  | 'pocket'
+  | 'zipvoice'
+  | 'auto'
+```
+
+- `'vits'`: VITS models (includes Piper, Coqui, MeloTTS, MMS variants)
+- `'matcha'`: Matcha models (acoustic model + vocoder)
+- `'kokoro'`: Kokoro models (multi-speaker, multi-language)
+- `'kitten'`: KittenTTS models (lightweight, multi-speaker)
+- `'pocket'`: Pocket TTS models
+- `'zipvoice'`: Zipvoice models (voice cloning capable)
+- `'auto'`: Auto-detect model type based on files present (default)
+
+### TTS_MODEL_TYPES
+
+Runtime array of supported TTS model types.
+
+```typescript
+const TTS_MODEL_TYPES: readonly TTSModelType[] = [
+  'vits',
+  'matcha',
+  'kokoro',
+  'kitten',
+  'pocket',
+  'zipvoice',
+  'auto',
+] as const
+```
+
+---
+
+## TTSInitializeOptions
+
+Configuration for TTS initialization.
+
+```typescript
+interface TTSInitializeOptions {
+  modelPath: ModelPathConfig
+  modelType?: TTSModelType
+  provider?: string
+  numThreads?: number
+  debug?: boolean
+  modelOptions?: TtsModelOptions
+  ruleFsts?: string
+  ruleFars?: string
+  maxNumSentences?: number
+  silenceScale?: number
+}
+```
+
+<ParamField path="modelPath" type="ModelPathConfig" required>
+  Path to the model directory (asset path, file system path, or auto-detection path)
+</ParamField>
+
+<ParamField path="modelType" type="TTSModelType" default="'auto'">
+  Model type to use. If not specified or 'auto', the model type will be auto-detected based on the files present in the model directory.
+</ParamField>
+
+<ParamField path="provider" type="string" default="'cpu'">
+  Execution provider: `'cpu'`, `'coreml'`, `'xnnpack'`, `'nnapi'`, `'qnn'`. Use `getCoreMlSupport()`, `getXnnpackSupport()`, etc. to check availability.
+</ParamField>
+
+<ParamField path="numThreads" type="number" default={2}>
+  Number of threads to use for inference. More threads = faster processing but more CPU usage.
+</ParamField>
+
+<ParamField path="debug" type="boolean" default={false}>
+  Enable debug logging from the TTS engine.
+</ParamField>
+
+<ParamField path="modelOptions" type="TtsModelOptions">
+  Model-specific options. Only options for the loaded model type are applied. E.g., when modelType is 'vits', only modelOptions.vits is used.
+</ParamField>
+
+<ParamField path="ruleFsts" type="string">
+  Path(s) to rule FSTs for TTS (OfflineTtsConfig.ruleFsts). Used for text normalization / ITN.
+</ParamField>
+
+<ParamField path="ruleFars" type="string">
+  Path(s) to rule FARs for TTS (OfflineTtsConfig.ruleFars). Used for text normalization / ITN.
+</ParamField>
+
+<ParamField path="maxNumSentences" type="number" default={1}>
+  Max number of sentences per streaming callback (OfflineTtsConfig.maxNumSentences).
+</ParamField>
+
+<ParamField path="silenceScale" type="number" default={0.2}>
+  Silence scale on config level (OfflineTtsConfig.silenceScale).
+</ParamField>
+
+---
+
+## TtsModelOptions
+
+Model-specific TTS options. Only the block for the actually loaded model type is applied; others are ignored (e.g., vits options have no effect when a kokoro model is loaded).
+
+```typescript
+interface TtsModelOptions {
+  vits?: TtsVitsModelOptions
+  matcha?: TtsMatchaModelOptions
+  kokoro?: TtsKokoroModelOptions
+  kitten?: TtsKittenModelOptions
+  pocket?: TtsPocketModelOptions
+}
+```
+
+### TtsVitsModelOptions
+
+Options for VITS models. Applied only when modelType is 'vits'.
+
+```typescript
+interface TtsVitsModelOptions {
+  noiseScale?: number
+  noiseScaleW?: number
+  lengthScale?: number
+}
+```
+
+<ParamField path="noiseScale" type="number">
+  Noise scale. If omitted, model default (or model.json) is used.
+</ParamField>
+
+<ParamField path="noiseScaleW" type="number">
+  Noise scale W. If omitted, model default is used.
+</ParamField>
+
+<ParamField path="lengthScale" type="number">
+  Length scale. If omitted, model default is used.
+</ParamField>
+
+### TtsMatchaModelOptions
+
+Options for Matcha models. Applied only when modelType is 'matcha'.
+
+```typescript
+interface TtsMatchaModelOptions {
+  noiseScale?: number
+  lengthScale?: number
+}
+```
+
+<ParamField path="noiseScale" type="number">
+  Noise scale. If omitted, model default is used.
+</ParamField>
+
+<ParamField path="lengthScale" type="number">
+  Length scale. If omitted, model default is used.
+</ParamField>
+
+### TtsKokoroModelOptions
+
+Options for Kokoro models. Applied only when modelType is 'kokoro'.
+
+```typescript
+interface TtsKokoroModelOptions {
+  lengthScale?: number
+}
+```
+
+<ParamField path="lengthScale" type="number">
+  Length scale. If omitted, model default is used.
+</ParamField>
+
+### TtsKittenModelOptions
+
+Options for KittenTTS models. Applied only when modelType is 'kitten'.
+
+```typescript
+interface TtsKittenModelOptions {
+  lengthScale?: number
+}
+```
+
+<ParamField path="lengthScale" type="number">
+  Length scale. If omitted, model default is used.
+</ParamField>
+
+### TtsPocketModelOptions
+
+Options for Pocket TTS models. Applied only when modelType is 'pocket'.
+
+```typescript
+interface TtsPocketModelOptions {
+  // No init-time options; voice cloning is via GenerationConfig at generate time.
+}
+```
+
+---
+
+## TtsUpdateOptions
+
+Options for updating TTS model parameters at runtime.
+
+```typescript
+interface TtsUpdateOptions {
+  modelType?: TTSModelType
+  modelOptions?: TtsModelOptions
+}
+```
+
+<ParamField path="modelType" type="TTSModelType">
+  Model type currently loaded. When omitted or 'auto', the SDK uses the model type from the last successful initializeTTS(). After unloadTTS(), pass modelType explicitly until init is called again.
+</ParamField>
+
+<ParamField path="modelOptions" type="TtsModelOptions">
+  Model-specific options. Only the block for the effective model type is used (e.g., modelOptions.vits when type is 'vits').
+</ParamField>
+
+---
+
+## TtsGenerationOptions
+
+Options for TTS generation. Maps to Kotlin GenerationConfig when reference audio or advanced options are used; otherwise simple sid/speed are used.
+
+```typescript
+interface TtsGenerationOptions {
+  sid?: number
+  speed?: number
+  silenceScale?: number
+  referenceAudio?: { samples: number[]; sampleRate: number }
+  referenceText?: string
+  numSteps?: number
+  extra?: Record<string, string>
+}
+```
+
+<ParamField path="sid" type="number" default={0}>
+  Speaker ID for multi-speaker models. For single-speaker models, this is ignored. Use `getNumSpeakers()` to check how many speakers are available.
+</ParamField>
+
+<ParamField path="speed" type="number" default={1.0}>
+  Speech speed multiplier. 1.0 = normal speed, 0.5 = half speed (slower), 2.0 = double speed (faster).
+</ParamField>
+
+<ParamField path="silenceScale" type="number">
+  Silence scale (Kotlin GenerationConfig.silenceScale). Used at generate time.
+</ParamField>
+
+<ParamField path="referenceAudio" type="{ samples: number[]; sampleRate: number }">
+  Reference audio for voice cloning (Kotlin GenerationConfig). In the Kotlin/RN stack, only Pocket TTS uses this; other model types (vits, matcha, kokoro, kitten) ignore it. Mono float samples in [-1, 1] and sample rate in Hz.
+</ParamField>
+
+<ParamField path="referenceText" type="string">
+  Transcript text of the reference audio (Kotlin GenerationConfig.referenceText). Required for Pocket TTS when referenceAudio is provided; ignored by other model types.
+</ParamField>
+
+<ParamField path="numSteps" type="number">
+  Number of steps, e.g., flow-matching steps (Kotlin GenerationConfig.numSteps). Used by models such as Pocket.
+</ParamField>
+
+<ParamField path="extra" type="Record<string, string>">
+  Extra options as key-value pairs (Kotlin GenerationConfig.extra). Model-specific (e.g., temperature, chunk_size for Pocket).
+</ParamField>
+
+---
+
+## GeneratedAudio
+
+Generated audio data from TTS synthesis.
+
+```typescript
+interface GeneratedAudio {
+  samples: number[]
+  sampleRate: number
+}
+```
+
+<ResponseField name="samples" type="number[]">
+  Audio samples as an array of float values in range [-1.0, 1.0]. This is raw PCM audio data. The samples are normalized float values.
+</ResponseField>
+
+<ResponseField name="sampleRate" type="number">
+  Sample rate of the generated audio in Hz. Common values: 16000, 22050, 44100, 48000.
+</ResponseField>
+
+---
+
+## GeneratedAudioWithTimestamps
+
+Generated audio with subtitle/timestamp metadata.
+
+```typescript
+interface GeneratedAudioWithTimestamps extends GeneratedAudio {
+  subtitles: TtsSubtitleItem[]
+  estimated: boolean
+}
+```
+
+<ResponseField name="samples" type="number[]">
+  Audio samples as float values in range [-1.0, 1.0]
+</ResponseField>
+
+<ResponseField name="sampleRate" type="number">
+  Sample rate in Hz
+</ResponseField>
+
+<ResponseField name="subtitles" type="TtsSubtitleItem[]">
+  Subtitle/timestamp entries
+</ResponseField>
+
+<ResponseField name="estimated" type="boolean">
+  True if timestamps are estimated rather than model-provided
+</ResponseField>
+
+### TtsSubtitleItem
+
+Subtitle/timestamp item for synthesized speech.
+
+```typescript
+interface TtsSubtitleItem {
+  text: string
+  start: number
+  end: number
+}
+```
+
+<ResponseField name="text" type="string">
+  Text token for this time range
+</ResponseField>
+
+<ResponseField name="start" type="number">
+  Start time in seconds
+</ResponseField>
+
+<ResponseField name="end" type="number">
+  End time in seconds
+</ResponseField>
+
+---
+
+## TTSModelInfo
+
+Information about TTS model capabilities.
+
+```typescript
+interface TTSModelInfo {
+  sampleRate: number
+  numSpeakers: number
+}
+```
+
+<ResponseField name="sampleRate" type="number">
+  Sample rate that the model generates audio at
+</ResponseField>
+
+<ResponseField name="numSpeakers" type="number">
+  Number of speakers/voices available in the model:
+  - 0 or 1: Single-speaker model
+  - >1: Multi-speaker model
+</ResponseField>
+
+---
+
+## Streaming Types
+
+### TtsStreamChunk
+
+Streaming chunk event payload for TTS generation.
+
+```typescript
+interface TtsStreamChunk {
+  instanceId?: string
+  requestId?: string
+  samples: number[]
+  sampleRate: number
+  progress: number
+  isFinal: boolean
+}
+```
+
+<ResponseField name="instanceId" type="string">
+  Instance ID (set by native for multi-instance routing)
+</ResponseField>
+
+<ResponseField name="requestId" type="string">
+  Request ID for this generation (distinguishes concurrent streams on same instance)
+</ResponseField>
+
+<ResponseField name="samples" type="number[]">
+  Audio samples as float values in range [-1.0, 1.0]
+</ResponseField>
+
+<ResponseField name="sampleRate" type="number">
+  Sample rate in Hz
+</ResponseField>
+
+<ResponseField name="progress" type="number">
+  Progress indicator (0.0 to 1.0)
+</ResponseField>
+
+<ResponseField name="isFinal" type="boolean">
+  True if this is the final chunk
+</ResponseField>
+
+### TtsStreamEnd
+
+Streaming end event payload.
+
+```typescript
+interface TtsStreamEnd {
+  instanceId?: string
+  requestId?: string
+  cancelled: boolean
+}
+```
+
+<ResponseField name="instanceId" type="string">
+  Instance ID (set by native for multi-instance routing)
+</ResponseField>
+
+<ResponseField name="requestId" type="string">
+  Request ID for this generation
+</ResponseField>
+
+<ResponseField name="cancelled" type="boolean">
+  True if the stream was cancelled
+</ResponseField>
+
+### TtsStreamError
+
+Streaming error event payload.
+
+```typescript
+interface TtsStreamError {
+  instanceId?: string
+  requestId?: string
+  message: string
+}
+```
+
+<ResponseField name="instanceId" type="string">
+  Instance ID (set by native for multi-instance routing)
+</ResponseField>
+
+<ResponseField name="requestId" type="string">
+  Request ID for this generation
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message
+</ResponseField>
+
+### TtsStreamController
+
+Controller returned by `generateSpeechStream()`. Use `cancel()` to stop generation, `unsubscribe()` to remove event listeners.
+
+```typescript
+interface TtsStreamController {
+  cancel(): Promise<void>
+  unsubscribe(): void
+}
+```
+
+<ResponseField name="cancel" type="() => Promise<void>">
+  Cancel the ongoing TTS generation
+</ResponseField>
+
+<ResponseField name="unsubscribe" type="() => void">
+  Remove event listeners (called automatically on end/error, or manually)
+</ResponseField>
+
+### TtsStreamHandlers
+
+Handlers for TTS streaming generation (chunk, end, error).
+
+```typescript
+interface TtsStreamHandlers {
+  onChunk?: (chunk: TtsStreamChunk) => void
+  onEnd?: (event: TtsStreamEnd) => void
+  onError?: (event: TtsStreamError) => void
+}
+```
+
+<ResponseField name="onChunk" type="(chunk: TtsStreamChunk) => void">
+  Called for each audio chunk generated
+</ResponseField>
+
+<ResponseField name="onEnd" type="(event: TtsStreamEnd) => void">
+  Called when the stream completes successfully or is cancelled
+</ResponseField>
+
+<ResponseField name="onError" type="(event: TtsStreamError) => void">
+  Called when an error occurs during streaming
+</ResponseField>
+
+---
+
+## Engine Interfaces
+
+### TtsEngine
+
+Instance-based batch TTS engine returned by `createTTS()`. Use for one-shot synthesis (`generateSpeech`, `generateSpeechWithTimestamps`). For streaming, use `createStreamingTTS()` and `StreamingTtsEngine` instead. Call `destroy()` when done to free native resources.
+
+```typescript
+interface TtsEngine {
+  readonly instanceId: string
+  generateSpeech(
+    text: string,
+    options?: TtsGenerationOptions
+  ): Promise<GeneratedAudio>
+  generateSpeechWithTimestamps(
+    text: string,
+    options?: TtsGenerationOptions
+  ): Promise<GeneratedAudioWithTimestamps>
+  updateParams(options: TtsUpdateOptions): Promise<{
+    success: boolean
+    detectedModels: Array<{ type: string; modelDir: string }>
+  }>
+  getModelInfo(): Promise<TTSModelInfo>
+  getSampleRate(): Promise<number>
+  getNumSpeakers(): Promise<number>
+  destroy(): Promise<void>
+}
+```
+
+### StreamingTtsEngine
+
+Streaming-only TTS engine returned by `createStreamingTTS()`. Use for incremental generation with chunk callbacks and PCM playback. Call `destroy()` when done to free native resources.
+
+```typescript
+interface StreamingTtsEngine {
+  readonly instanceId: string
+  generateSpeechStream(
+    text: string,
+    options: TtsGenerationOptions | undefined,
+    handlers: TtsStreamHandlers
+  ): Promise<TtsStreamController>
+  cancelSpeechStream(): Promise<void>
+  startPcmPlayer(sampleRate: number, channels: number): Promise<void>
+  writePcmChunk(samples: number[]): Promise<void>
+  stopPcmPlayer(): Promise<void>
+  getModelInfo(): Promise<TTSModelInfo>
+  getSampleRate(): Promise<number>
+  getNumSpeakers(): Promise<number>
+  destroy(): Promise<void>
+}
+```

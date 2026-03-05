@@ -1,0 +1,520 @@
+---
+title: "createTTS"
+description: "Create a TTS engine instance for one-shot speech synthesis"
+---
+
+## createTTS
+
+Create a TTS engine instance for one-shot synthesis (batch audio generation). For streaming synthesis with chunk callbacks, use [createStreamingTTS](/api/tts/streaming-tts).
+
+```typescript
+function createTTS(
+  options: TTSInitializeOptions | ModelPathConfig
+): Promise<TtsEngine>
+```
+
+<ParamField path="options" type="TTSInitializeOptions | ModelPathConfig" required>
+  Configuration object or model path. See [TTSInitializeOptions](/api/tts/types#ttsinitializeoptions) for all options.
+
+  <Expandable title="TTSInitializeOptions properties">
+    <ParamField path="modelPath" type="ModelPathConfig" required>
+      Path to the model directory (asset, file, or auto-detection path)
+    </ParamField>
+
+    <ParamField path="modelType" type="TTSModelType" default="'auto'">
+      Model type: `'vits'`, `'matcha'`, `'kokoro'`, `'kitten'`, `'pocket'`, `'zipvoice'`, or `'auto'`
+    </ParamField>
+
+    <ParamField path="provider" type="string" default="'cpu'">
+      Execution provider: `'cpu'`, `'coreml'`, `'xnnpack'`, `'nnapi'`, `'qnn'`
+    </ParamField>
+
+    <ParamField path="numThreads" type="number" default={2}>
+      Number of threads for inference (more threads = faster but more CPU usage)
+    </ParamField>
+
+    <ParamField path="debug" type="boolean" default={false}>
+      Enable debug logging from the TTS engine
+    </ParamField>
+
+    <ParamField path="modelOptions" type="TtsModelOptions">
+      Model-specific options (only options for the loaded model type are applied)
+    </ParamField>
+
+    <ParamField path="ruleFsts" type="string">
+      Path(s) to rule FSTs for text normalization / ITN
+    </ParamField>
+
+    <ParamField path="ruleFars" type="string">
+      Path(s) to rule FARs for text normalization / ITN
+    </ParamField>
+
+    <ParamField path="maxNumSentences" type="number" default={1}>
+      Max number of sentences per streaming callback
+    </ParamField>
+
+    <ParamField path="silenceScale" type="number" default={0.2}>
+      Silence scale on config level
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="TtsEngine" type="Promise<TtsEngine>">
+  Promise that resolves to a TTS engine instance. Call `destroy()` when done to free native resources.
+</ResponseField>
+
+### Example
+
+```typescript
+import { createTTS } from 'react-native-sherpa-onnx';
+
+const tts = await createTTS({
+  modelPath: { type: 'asset', path: 'models/vits-piper-en' },
+  modelType: 'vits',
+  modelOptions: { vits: { noiseScale: 0.667 } },
+});
+
+const audio = await tts.generateSpeech('Hello world');
+await tts.destroy();
+```
+
+---
+
+## TtsEngine Interface
+
+The TTS engine instance returned by `createTTS()` with methods for batch synthesis.
+
+### instanceId
+
+```typescript
+readonly instanceId: string
+```
+
+Unique identifier for this TTS engine instance.
+
+### generateSpeech
+
+Generate speech audio from text (one-shot synthesis).
+
+```typescript
+generateSpeech(
+  text: string,
+  options?: TtsGenerationOptions
+): Promise<GeneratedAudio>
+```
+
+<ParamField path="text" type="string" required>
+  Text to synthesize into speech
+</ParamField>
+
+<ParamField path="options" type="TtsGenerationOptions">
+  Generation options (speaker ID, speed, silence scale, reference audio, etc.)
+
+  <Expandable title="TtsGenerationOptions properties">
+    <ParamField path="sid" type="number" default={0}>
+      Speaker ID for multi-speaker models
+    </ParamField>
+
+    <ParamField path="speed" type="number" default={1.0}>
+      Speech speed multiplier (1.0 = normal, 0.5 = half speed, 2.0 = double speed)
+    </ParamField>
+
+    <ParamField path="silenceScale" type="number">
+      Silence scale at generate time
+    </ParamField>
+
+    <ParamField path="referenceAudio" type="{ samples: number[]; sampleRate: number }">
+      Reference audio for voice cloning (Pocket TTS only)
+    </ParamField>
+
+    <ParamField path="referenceText" type="string">
+      Transcript of reference audio (required for Pocket TTS when referenceAudio is provided)
+    </ParamField>
+
+    <ParamField path="numSteps" type="number">
+      Number of flow-matching steps (used by Pocket and similar models)
+    </ParamField>
+
+    <ParamField path="extra" type="Record<string, string>">
+      Model-specific extra options (e.g., temperature, chunk_size for Pocket)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="GeneratedAudio" type="Promise<GeneratedAudio>">
+  Generated audio with samples (float array in range [-1.0, 1.0]) and sample rate.
+
+  <Expandable title="GeneratedAudio properties">
+    <ResponseField name="samples" type="number[]">
+      Audio samples as float values in range [-1.0, 1.0] (raw PCM audio data)
+    </ResponseField>
+
+    <ResponseField name="sampleRate" type="number">
+      Sample rate of the generated audio in Hz (e.g., 16000, 22050, 44100, 48000)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Example
+
+```typescript
+const audio = await tts.generateSpeech('Hello world', {
+  sid: 0,
+  speed: 1.2,
+});
+
+console.log(`Generated ${audio.samples.length} samples at ${audio.sampleRate}Hz`);
+```
+
+### generateSpeechWithTimestamps
+
+Generate speech with subtitle/timestamp metadata.
+
+```typescript
+generateSpeechWithTimestamps(
+  text: string,
+  options?: TtsGenerationOptions
+): Promise<GeneratedAudioWithTimestamps>
+```
+
+<ParamField path="text" type="string" required>
+  Text to synthesize into speech
+</ParamField>
+
+<ParamField path="options" type="TtsGenerationOptions">
+  Generation options (same as `generateSpeech`)
+</ParamField>
+
+<ResponseField name="GeneratedAudioWithTimestamps" type="Promise<GeneratedAudioWithTimestamps>">
+  Generated audio with timestamp information for each text segment.
+
+  <Expandable title="GeneratedAudioWithTimestamps properties">
+    <ResponseField name="samples" type="number[]">
+      Audio samples as float values in range [-1.0, 1.0]
+    </ResponseField>
+
+    <ResponseField name="sampleRate" type="number">
+      Sample rate of the generated audio in Hz
+    </ResponseField>
+
+    <ResponseField name="subtitles" type="TtsSubtitleItem[]">
+      Array of subtitle/timestamp entries
+
+      <Expandable title="TtsSubtitleItem properties">
+        <ResponseField name="text" type="string">
+          Text token for this time range
+        </ResponseField>
+
+        <ResponseField name="start" type="number">
+          Start time in seconds
+        </ResponseField>
+
+        <ResponseField name="end" type="number">
+          End time in seconds
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+
+    <ResponseField name="estimated" type="boolean">
+      True if timestamps are estimated rather than model-provided
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Example
+
+```typescript
+const result = await tts.generateSpeechWithTimestamps('Hello world');
+
+console.log('Subtitles:', result.subtitles);
+// [{ text: 'Hello', start: 0.0, end: 0.5 }, { text: 'world', start: 0.5, end: 1.0 }]
+```
+
+### updateParams
+
+Update TTS model parameters at runtime (e.g., noise scale, length scale).
+
+```typescript
+updateParams(
+  options: TtsUpdateOptions
+): Promise<{
+  success: boolean;
+  detectedModels: Array<{ type: string; modelDir: string }>;
+}>
+```
+
+<ParamField path="options" type="TtsUpdateOptions" required>
+  <Expandable title="TtsUpdateOptions properties">
+    <ParamField path="modelType" type="TTSModelType">
+      Model type currently loaded (when omitted or 'auto', uses last successful init type)
+    </ParamField>
+
+    <ParamField path="modelOptions" type="TtsModelOptions">
+      Model-specific options (only the block for the effective model type is used)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="result" type="Promise<{ success: boolean; detectedModels: Array<{ type: string; modelDir: string }> }>">
+  Update result with success status and detected models
+</ResponseField>
+
+#### Example
+
+```typescript
+await tts.updateParams({
+  modelType: 'vits',
+  modelOptions: {
+    vits: {
+      noiseScale: 0.8,
+      lengthScale: 1.1,
+    },
+  },
+});
+```
+
+### getModelInfo
+
+Get model information (sample rate and number of speakers).
+
+```typescript
+getModelInfo(): Promise<TTSModelInfo>
+```
+
+<ResponseField name="TTSModelInfo" type="Promise<TTSModelInfo>">
+  <Expandable title="TTSModelInfo properties">
+    <ResponseField name="sampleRate" type="number">
+      Sample rate that the model generates audio at
+    </ResponseField>
+
+    <ResponseField name="numSpeakers" type="number">
+      Number of speakers/voices available (0 or 1 = single-speaker, >1 = multi-speaker)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Example
+
+```typescript
+const info = await tts.getModelInfo();
+console.log(`Sample rate: ${info.sampleRate}Hz, Speakers: ${info.numSpeakers}`);
+```
+
+### getSampleRate
+
+Get the model's sample rate.
+
+```typescript
+getSampleRate(): Promise<number>
+```
+
+<ResponseField name="sampleRate" type="Promise<number>">
+  Sample rate in Hz
+</ResponseField>
+
+### getNumSpeakers
+
+Get the number of speakers available in the model.
+
+```typescript
+getNumSpeakers(): Promise<number>
+```
+
+<ResponseField name="numSpeakers" type="Promise<number>">
+  Number of speakers (0 or 1 for single-speaker models, >1 for multi-speaker)
+</ResponseField>
+
+### destroy
+
+Release native TTS resources. Do not use the engine after calling this.
+
+```typescript
+destroy(): Promise<void>
+```
+
+#### Example
+
+```typescript
+await tts.destroy();
+// Engine is now destroyed and cannot be used
+```
+
+---
+
+## detectTtsModel
+
+Detect TTS model type and structure without initializing the engine. Stateless; no instance required.
+
+```typescript
+function detectTtsModel(
+  modelPath: ModelPathConfig,
+  options?: { modelType?: TTSModelType }
+): Promise<{
+  success: boolean;
+  detectedModels: Array<{ type: string; modelDir: string }>;
+  modelType?: string;
+}>
+```
+
+<ParamField path="modelPath" type="ModelPathConfig" required>
+  Model path configuration (asset, file, or auto)
+</ParamField>
+
+<ParamField path="options" type="{ modelType?: TTSModelType }">
+  Optional model type (default: 'auto')
+</ParamField>
+
+<ResponseField name="result" type="Promise<{ success: boolean; detectedModels: Array<{ type: string; modelDir: string }>; modelType?: string }>">
+  Detection result with success status, detected models array, and primary model type
+</ResponseField>
+
+### Example
+
+```typescript
+import { detectTtsModel } from 'react-native-sherpa-onnx';
+
+const result = await detectTtsModel({
+  type: 'asset',
+  path: 'models/vits-piper-en',
+});
+
+if (result.success) {
+  console.log('Detected type:', result.modelType);
+  console.log('Models:', result.detectedModels);
+}
+```
+
+---
+
+## Utility Functions
+
+### saveAudioToFile
+
+Save generated TTS audio to a WAV file.
+
+```typescript
+function saveAudioToFile(
+  audio: GeneratedAudio,
+  filePath: string
+): Promise<string>
+```
+
+<ParamField path="audio" type="GeneratedAudio" required>
+  Generated audio object from `generateSpeech`
+</ParamField>
+
+<ParamField path="filePath" type="string" required>
+  File system path where the WAV file will be saved
+</ParamField>
+
+<ResponseField name="filePath" type="Promise<string>">
+  Path to the saved WAV file
+</ResponseField>
+
+#### Example
+
+```typescript
+import { saveAudioToFile } from 'react-native-sherpa-onnx';
+
+const audio = await tts.generateSpeech('Hello world');
+const savedPath = await saveAudioToFile(audio, '/path/to/output.wav');
+console.log('Saved to:', savedPath);
+```
+
+### saveAudioToContentUri
+
+Save generated TTS audio to a WAV file via Android SAF content URI.
+
+```typescript
+function saveAudioToContentUri(
+  audio: GeneratedAudio,
+  directoryUri: string,
+  filename: string
+): Promise<string>
+```
+
+<ParamField path="audio" type="GeneratedAudio" required>
+  Generated audio object
+</ParamField>
+
+<ParamField path="directoryUri" type="string" required>
+  Android SAF directory content URI
+</ParamField>
+
+<ParamField path="filename" type="string" required>
+  Filename for the WAV file
+</ParamField>
+
+<ResponseField name="contentUri" type="Promise<string>">
+  Content URI of the saved file
+</ResponseField>
+
+#### Example
+
+```typescript
+import { saveAudioToContentUri } from 'react-native-sherpa-onnx';
+
+const audio = await tts.generateSpeech('Hello world');
+const contentUri = await saveAudioToContentUri(
+  audio,
+  'content://com.android.externalstorage.documents/tree/primary%3ADocuments',
+  'output.wav'
+);
+```
+
+---
+
+## Complete Example
+
+```typescript
+import { createTTS, saveAudioToFile } from 'react-native-sherpa-onnx';
+
+async function generateAndSaveSpeech() {
+  // Create TTS engine
+  const tts = await createTTS({
+    modelPath: { type: 'asset', path: 'models/vits-piper-en' },
+    modelType: 'vits',
+    numThreads: 4,
+    modelOptions: {
+      vits: {
+        noiseScale: 0.667,
+        lengthScale: 1.0,
+      },
+    },
+  });
+
+  try {
+    // Get model info
+    const info = await tts.getModelInfo();
+    console.log(`Sample rate: ${info.sampleRate}Hz`);
+    console.log(`Speakers: ${info.numSpeakers}`);
+
+    // Generate speech
+    const audio = await tts.generateSpeech('Hello, world!', {
+      sid: 0,
+      speed: 1.0,
+    });
+
+    // Save to file
+    const filePath = await saveAudioToFile(audio, '/path/to/output.wav');
+    console.log('Saved to:', filePath);
+
+    // Generate with timestamps
+    const result = await tts.generateSpeechWithTimestamps(
+      'This is a test with timestamps.'
+    );
+    console.log('Subtitles:', result.subtitles);
+
+    // Update parameters
+    await tts.updateParams({
+      modelType: 'vits',
+      modelOptions: {
+        vits: { noiseScale: 0.8 },
+      },
+    });
+  } finally {
+    // Always destroy the engine when done
+    await tts.destroy();
+  }
+}
+```

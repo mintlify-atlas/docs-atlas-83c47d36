@@ -1,0 +1,650 @@
+---
+title: 'STT Types'
+description: 'Type definitions for speech-to-text APIs'
+---
+
+## Offline STT Types
+
+### STTModelType
+
+Supported STT model types for offline recognition.
+
+```typescript
+type STTModelType =
+  | 'transducer'
+  | 'nemo_transducer'
+  | 'paraformer'
+  | 'nemo_ctc'
+  | 'wenet_ctc'
+  | 'sense_voice'
+  | 'zipformer_ctc'
+  | 'ctc'
+  | 'whisper'
+  | 'funasr_nano'
+  | 'fire_red_asr'
+  | 'moonshine'
+  | 'dolphin'
+  | 'canary'
+  | 'omnilingual'
+  | 'medasr'
+  | 'telespeech_ctc'
+  | 'auto';
+```
+
+**Available at runtime:**
+
+```typescript
+import { STT_MODEL_TYPES } from 'react-native-sherpa-onnx';
+
+console.log(STT_MODEL_TYPES);
+// ['transducer', 'nemo_transducer', 'paraformer', ...]
+```
+
+### STTInitializeOptions
+
+Options for initializing an offline STT engine.
+
+```typescript
+interface STTInitializeOptions {
+  modelPath: ModelPathConfig;
+  preferInt8?: boolean;
+  modelType?: STTModelType;
+  debug?: boolean;
+  hotwordsFile?: string;
+  hotwordsScore?: number;
+  modelingUnit?: 'cjkchar' | 'bpe' | 'cjkchar+bpe';
+  bpeVocab?: string;
+  numThreads?: number;
+  provider?: string;
+  ruleFsts?: string;
+  ruleFars?: string;
+  dither?: number;
+  modelOptions?: SttModelOptions;
+}
+```
+
+<ParamField path="modelPath" type="ModelPathConfig" required>
+  Model directory path configuration.
+</ParamField>
+
+<ParamField path="preferInt8" type="boolean">
+  Prefer int8 quantized models (smaller, faster) over regular models (higher accuracy).
+</ParamField>
+
+<ParamField path="modelType" type="STTModelType" default="auto">
+  Explicit model type or auto-detection.
+</ParamField>
+
+<ParamField path="debug" type="boolean" default="false">
+  Enable debug logging.
+</ParamField>
+
+<ParamField path="hotwordsFile" type="string">
+  Path to hotwords file (transducer/nemo_transducer only).
+</ParamField>
+
+<ParamField path="hotwordsScore" type="number" default="1.5">
+  Hotwords score for keyword boosting.
+</ParamField>
+
+<ParamField path="modelingUnit" type="'cjkchar' | 'bpe' | 'cjkchar+bpe'">
+  Modeling unit for hotwords tokenization.
+</ParamField>
+
+<ParamField path="bpeVocab" type="string">
+  Path to BPE vocabulary file (.vocab). Required when modelingUnit is 'bpe' or 'cjkchar+bpe'.
+</ParamField>
+
+<ParamField path="numThreads" type="number" default="1">
+  Number of threads for inference.
+</ParamField>
+
+<ParamField path="provider" type="string">
+  Execution provider (e.g. "cpu").
+</ParamField>
+
+<ParamField path="ruleFsts" type="string">
+  Path to rule FSTs for inverse text normalization.
+</ParamField>
+
+<ParamField path="ruleFars" type="string">
+  Path to rule FARs for inverse text normalization.
+</ParamField>
+
+<ParamField path="dither" type="number" default="0">
+  Dither for feature extraction.
+</ParamField>
+
+<ParamField path="modelOptions" type="SttModelOptions">
+  Model-specific options. See [SttModelOptions](#sttmodeloptions).
+</ParamField>
+
+### SttRecognitionResult
+
+Full recognition result from offline STT.
+
+```typescript
+interface SttRecognitionResult {
+  text: string;
+  tokens: string[];
+  timestamps: number[];
+  lang: string;
+  emotion: string;
+  event: string;
+  durations: number[];
+}
+```
+
+<ResponseField name="text" type="string">
+  Transcribed text.
+</ResponseField>
+
+<ResponseField name="tokens" type="string[]">
+  Token strings (word pieces or characters).
+</ResponseField>
+
+<ResponseField name="timestamps" type="number[]">
+  Timestamps per token (model-dependent).
+</ResponseField>
+
+<ResponseField name="lang" type="string">
+  Detected or specified language (model-dependent).
+</ResponseField>
+
+<ResponseField name="emotion" type="string">
+  Emotion label (e.g. SenseVoice models).
+</ResponseField>
+
+<ResponseField name="event" type="string">
+  Event label (model-dependent).
+</ResponseField>
+
+<ResponseField name="durations" type="number[]">
+  Durations (valid for TDT models).
+</ResponseField>
+
+### SttRuntimeConfig
+
+Runtime configuration for offline recognizer (updateable via `setConfig()`).
+
+```typescript
+interface SttRuntimeConfig {
+  decodingMethod?: string;
+  maxActivePaths?: number;
+  hotwordsFile?: string;
+  hotwordsScore?: number;
+  blankPenalty?: number;
+  ruleFsts?: string;
+  ruleFars?: string;
+}
+```
+
+<ParamField path="decodingMethod" type="string">
+  Decoding algorithm (e.g. "greedy_search", "modified_beam_search").
+</ParamField>
+
+<ParamField path="maxActivePaths" type="number">
+  Max active paths for beam search.
+</ParamField>
+
+<ParamField path="hotwordsFile" type="string">
+  Path to hotwords file.
+</ParamField>
+
+<ParamField path="hotwordsScore" type="number">
+  Hotwords score.
+</ParamField>
+
+<ParamField path="blankPenalty" type="number">
+  Blank penalty for CTC models.
+</ParamField>
+
+<ParamField path="ruleFsts" type="string">
+  Path to rule FSTs.
+</ParamField>
+
+<ParamField path="ruleFars" type="string">
+  Path to rule FARs.
+</ParamField>
+
+### SttModelOptions
+
+Model-specific options. Only options for the loaded model type are applied.
+
+```typescript
+interface SttModelOptions {
+  whisper?: SttWhisperModelOptions;
+  senseVoice?: SttSenseVoiceModelOptions;
+  canary?: SttCanaryModelOptions;
+  funasrNano?: SttFunAsrNanoModelOptions;
+}
+```
+
+#### SttWhisperModelOptions
+
+Options for Whisper models.
+
+```typescript
+interface SttWhisperModelOptions {
+  language?: string; // e.g. "en", "de"
+  task?: 'transcribe' | 'translate'; // default: "transcribe"
+  tailPaddings?: number; // default: 1000 (Kotlin)
+  enableTokenTimestamps?: boolean; // Android only
+  enableSegmentTimestamps?: boolean; // Android only
+}
+```
+
+<ParamField path="language" type="string" default="en">
+  Language code for multilingual models.
+</ParamField>
+
+<ParamField path="task" type="'transcribe' | 'translate'" default="transcribe">
+  Task mode. "translate" outputs English text.
+</ParamField>
+
+<ParamField path="tailPaddings" type="number" default="1000">
+  Padding at end of samples.
+</ParamField>
+
+<ParamField path="enableTokenTimestamps" type="boolean">
+  Enable token-level timestamps (Android only).
+</ParamField>
+
+<ParamField path="enableSegmentTimestamps" type="boolean">
+  Enable segment-level timestamps (Android only).
+</ParamField>
+
+#### SttSenseVoiceModelOptions
+
+Options for SenseVoice models.
+
+```typescript
+interface SttSenseVoiceModelOptions {
+  language?: string;
+  useItn?: boolean; // default: true (Kotlin), false (C++)
+}
+```
+
+<ParamField path="language" type="string">
+  Language hint.
+</ParamField>
+
+<ParamField path="useItn" type="boolean">
+  Use inverse text normalization.
+</ParamField>
+
+#### SttCanaryModelOptions
+
+Options for Canary models.
+
+```typescript
+interface SttCanaryModelOptions {
+  srcLang?: string; // default: "en"
+  tgtLang?: string; // default: "en"
+  usePnc?: boolean; // default: true
+}
+```
+
+<ParamField path="srcLang" type="string" default="en">
+  Source language code.
+</ParamField>
+
+<ParamField path="tgtLang" type="string" default="en">
+  Target language code.
+</ParamField>
+
+<ParamField path="usePnc" type="boolean" default="true">
+  Use punctuation.
+</ParamField>
+
+#### SttFunAsrNanoModelOptions
+
+Options for FunASR Nano models.
+
+```typescript
+interface SttFunAsrNanoModelOptions {
+  systemPrompt?: string; // default: "You are a helpful assistant."
+  userPrompt?: string; // default: "语音转写："
+  maxNewTokens?: number; // default: 512
+  temperature?: number; // default: 1e-6
+  topP?: number; // default: 0.8
+  seed?: number; // default: 42
+  language?: string;
+  itn?: boolean; // default: true
+  hotwords?: string;
+}
+```
+
+<ParamField path="systemPrompt" type="string" default="You are a helpful assistant.">
+  System prompt for the model.
+</ParamField>
+
+<ParamField path="userPrompt" type="string" default="语音转写：">
+  User prompt prefix.
+</ParamField>
+
+<ParamField path="maxNewTokens" type="number" default="512">
+  Maximum new tokens to generate.
+</ParamField>
+
+<ParamField path="temperature" type="number" default="1e-6">
+  Sampling temperature.
+</ParamField>
+
+<ParamField path="topP" type="number" default="0.8">
+  Top-p (nucleus) sampling.
+</ParamField>
+
+<ParamField path="seed" type="number" default="42">
+  Random seed.
+</ParamField>
+
+<ParamField path="language" type="string">
+  Language hint.
+</ParamField>
+
+<ParamField path="itn" type="boolean" default="true">
+  Inverse text normalization.
+</ParamField>
+
+<ParamField path="hotwords" type="string">
+  Hotwords string.
+</ParamField>
+
+### SttInitResult
+
+Result of STT initialization (internal, returned by native layer).
+
+```typescript
+interface SttInitResult {
+  success: boolean;
+  detectedModels: Array<{ type: string; modelDir: string }>;
+  modelType?: string;
+  decodingMethod?: string;
+}
+```
+
+### Hotwords Support
+
+Only transducer and nemo_transducer models support hotwords.
+
+```typescript
+import { STT_HOTWORDS_MODEL_TYPES, sttSupportsHotwords } from 'react-native-sherpa-onnx';
+
+console.log(STT_HOTWORDS_MODEL_TYPES);
+// ['transducer', 'nemo_transducer']
+
+const supportsHotwords = sttSupportsHotwords('transducer');
+console.log(supportsHotwords); // true
+
+const doesNotSupport = sttSupportsHotwords('whisper');
+console.log(doesNotSupport); // false
+```
+
+---
+
+## Streaming STT Types
+
+### OnlineSTTModelType
+
+Supported model types for streaming (online) recognition.
+
+```typescript
+type OnlineSTTModelType =
+  | 'transducer'
+  | 'paraformer'
+  | 'zipformer2_ctc'
+  | 'nemo_ctc'
+  | 'tone_ctc';
+```
+
+**Available at runtime:**
+
+```typescript
+import { ONLINE_STT_MODEL_TYPES } from 'react-native-sherpa-onnx';
+
+console.log(ONLINE_STT_MODEL_TYPES);
+// ['transducer', 'paraformer', 'zipformer2_ctc', 'nemo_ctc', 'tone_ctc']
+```
+
+### StreamingSttInitOptions
+
+Options for initializing a streaming STT engine.
+
+```typescript
+interface StreamingSttInitOptions {
+  modelPath: ModelPathConfig;
+  modelType: OnlineSTTModelType | 'auto';
+  enableEndpoint?: boolean;
+  endpointConfig?: EndpointConfig;
+  decodingMethod?: 'greedy_search' | 'modified_beam_search';
+  maxActivePaths?: number;
+  hotwordsFile?: string;
+  hotwordsScore?: number;
+  numThreads?: number;
+  provider?: string;
+  ruleFsts?: string;
+  ruleFars?: string;
+  blankPenalty?: number;
+  debug?: boolean;
+  enableInputNormalization?: boolean;
+}
+```
+
+<ParamField path="modelPath" type="ModelPathConfig" required>
+  Model directory path configuration.
+</ParamField>
+
+<ParamField path="modelType" type="OnlineSTTModelType | 'auto'" required>
+  Online model type or 'auto' for detection.
+</ParamField>
+
+<ParamField path="enableEndpoint" type="boolean" default="true">
+  Enable automatic endpoint detection.
+</ParamField>
+
+<ParamField path="endpointConfig" type="EndpointConfig">
+  Endpoint detection rules. See [EndpointConfig](#endpointconfig).
+</ParamField>
+
+<ParamField path="decodingMethod" type="'greedy_search' | 'modified_beam_search'" default="greedy_search">
+  Decoding algorithm.
+</ParamField>
+
+<ParamField path="maxActivePaths" type="number" default="4">
+  Max active paths for beam search.
+</ParamField>
+
+<ParamField path="hotwordsFile" type="string">
+  Path to hotwords file (transducer/nemo_transducer only).
+</ParamField>
+
+<ParamField path="hotwordsScore" type="number" default="1.5">
+  Hotwords score.
+</ParamField>
+
+<ParamField path="numThreads" type="number" default="1">
+  Number of threads.
+</ParamField>
+
+<ParamField path="provider" type="string">
+  Execution provider.
+</ParamField>
+
+<ParamField path="ruleFsts" type="string">
+  Path to rule FSTs.
+</ParamField>
+
+<ParamField path="ruleFars" type="string">
+  Path to rule FARs.
+</ParamField>
+
+<ParamField path="blankPenalty" type="number">
+  Blank penalty for CTC models.
+</ParamField>
+
+<ParamField path="debug" type="boolean" default="false">
+  Enable debug logging.
+</ParamField>
+
+<ParamField path="enableInputNormalization" type="boolean" default="true">
+  Enable adaptive input normalization in processAudioChunk().
+</ParamField>
+
+### StreamingSttResult
+
+Partial or final recognition result from streaming STT.
+
+```typescript
+interface StreamingSttResult {
+  text: string;
+  tokens: string[];
+  timestamps: number[];
+}
+```
+
+<ResponseField name="text" type="string">
+  Current transcription text (partial or final).
+</ResponseField>
+
+<ResponseField name="tokens" type="string[]">
+  Token strings.
+</ResponseField>
+
+<ResponseField name="timestamps" type="number[]">
+  Timestamps per token.
+</ResponseField>
+
+### EndpointConfig
+
+Endpoint detection configuration with three rules.
+
+```typescript
+interface EndpointConfig {
+  rule1?: EndpointRule;
+  rule2?: EndpointRule;
+  rule3?: EndpointRule;
+}
+```
+
+<ParamField path="rule1" type="EndpointRule">
+  First endpoint rule (e.g. 2.4s trailing silence, no speech required).
+</ParamField>
+
+<ParamField path="rule2" type="EndpointRule">
+  Second endpoint rule (e.g. 1.4s trailing silence, speech required).
+</ParamField>
+
+<ParamField path="rule3" type="EndpointRule">
+  Third endpoint rule (e.g. max utterance length 20s).
+</ParamField>
+
+### EndpointRule
+
+Single endpoint detection rule.
+
+```typescript
+interface EndpointRule {
+  mustContainNonSilence: boolean;
+  minTrailingSilence: number;
+  minUtteranceLength: number;
+}
+```
+
+<ParamField path="mustContainNonSilence" type="boolean" required>
+  If true, rule only matches when the segment contains non-silence (speech).
+</ParamField>
+
+<ParamField path="minTrailingSilence" type="number" required>
+  Minimum trailing silence duration in seconds to trigger endpoint.
+</ParamField>
+
+<ParamField path="minUtteranceLength" type="number" required>
+  Minimum utterance length in seconds (acts as max length cap for rule3).
+</ParamField>
+
+**Example:**
+
+```typescript
+const endpointConfig: EndpointConfig = {
+  // Rule 1: 2.4 seconds of silence (regardless of speech)
+  rule1: {
+    mustContainNonSilence: false,
+    minTrailingSilence: 2.4,
+    minUtteranceLength: 0,
+  },
+  // Rule 2: 1.4 seconds of silence after speech
+  rule2: {
+    mustContainNonSilence: true,
+    minTrailingSilence: 1.4,
+    minUtteranceLength: 0,
+  },
+  // Rule 3: Maximum utterance length of 20 seconds
+  rule3: {
+    mustContainNonSilence: false,
+    minTrailingSilence: 0,
+    minUtteranceLength: 20.0,
+  },
+};
+```
+
+---
+
+## Engine Interfaces
+
+### SttEngine
+
+Offline STT engine interface (returned by `createSTT()`).
+
+```typescript
+interface SttEngine {
+  readonly instanceId: string;
+  transcribeFile(filePath: string): Promise<SttRecognitionResult>;
+  transcribeSamples(
+    samples: number[],
+    sampleRate: number
+  ): Promise<SttRecognitionResult>;
+  setConfig(options: SttRuntimeConfig): Promise<void>;
+  destroy(): Promise<void>;
+}
+```
+
+See [createSTT](/api/stt/create-stt) for detailed documentation.
+
+### StreamingSttEngine
+
+Streaming STT engine interface (returned by `createStreamingSTT()`).
+
+```typescript
+interface StreamingSttEngine {
+  readonly instanceId: string;
+  createStream(hotwords?: string): Promise<SttStream>;
+  destroy(): Promise<void>;
+}
+```
+
+See [Streaming STT](/api/stt/streaming-stt) for detailed documentation.
+
+### SttStream
+
+Streaming recognition stream interface.
+
+```typescript
+interface SttStream {
+  readonly streamId: string;
+  acceptWaveform(samples: number[], sampleRate: number): Promise<void>;
+  inputFinished(): Promise<void>;
+  decode(): Promise<void>;
+  isReady(): Promise<boolean>;
+  getResult(): Promise<StreamingSttResult>;
+  isEndpoint(): Promise<boolean>;
+  reset(): Promise<void>;
+  release(): Promise<void>;
+  processAudioChunk(
+    samples: number[] | Float32Array,
+    sampleRate: number
+  ): Promise<{ result: StreamingSttResult; isEndpoint: boolean }>;
+}
+```
+
+See [Streaming STT](/api/stt/streaming-stt) for detailed documentation.

@@ -1,0 +1,130 @@
+---
+title: 'Voice Activity Detection'
+description: 'Detect speech segments in audio'
+icon: 'microphone'
+---
+
+<Note>
+  Voice Activity Detection (VAD) is **not yet implemented** in React Native Sherpa ONNX. This page serves as a placeholder for future functionality.
+</Note>
+
+## Status
+
+VAD support is **coming in a future release**. This feature will enable:
+
+- Detection of speech segments in audio files
+- Real-time voice activity detection
+- Silence removal and audio segmentation
+- Integration with streaming STT
+
+## Planned API
+
+The VAD module will provide the following functionality:
+
+```typescript
+import { initializeVAD, detectVoiceActivity } from 'react-native-sherpa-onnx/vad';
+
+// Initialize VAD with model
+await initializeVAD({
+  modelPath: { type: 'asset', path: 'models/vad-model' },
+});
+
+// Detect voice activity in audio file
+const segments = await detectVoiceActivity('/path/to/audio.wav');
+// Returns: [{ start: 0.5, end: 2.3 }, { start: 3.1, end: 5.2 }, ...]
+
+// Clean up
+await unloadVAD();
+```
+
+## Type Definitions
+
+The following types are defined as placeholders:
+
+```typescript
+interface VADInitializeOptions {
+  modelPath: ModelPathConfig;
+  // Additional VAD-specific options
+}
+
+interface VoiceSegment {
+  start: number;  // Start time in seconds
+  end: number;    // End time in seconds
+  // Additional segment fields
+}
+```
+
+**Source:** [src/vad/index.ts](~/workspace/source/src/vad/index.ts)
+
+## Current Status
+
+Attempting to use the VAD APIs will throw an error:
+
+```typescript
+import { initializeVAD } from 'react-native-sherpa-onnx/vad';
+
+try {
+  await initializeVAD({ modelPath: { type: 'asset', path: 'models/vad' } });
+} catch (error) {
+  console.error(error.message);
+  // "VAD feature is not yet implemented. This is a placeholder module."
+}
+```
+
+## Timeline
+
+<Steps>
+  <Step title="Phase 1: Research" icon="magnifying-glass">
+    Evaluate sherpa-onnx VAD capabilities and model requirements
+  </Step>
+  <Step title="Phase 2: Native Implementation" icon="code">
+    Implement VAD in Android and iOS native layers
+  </Step>
+  <Step title="Phase 3: JS Bridge" icon="bridge">
+    Expose VAD APIs to JavaScript/TypeScript
+  </Step>
+  <Step title="Phase 4: Documentation & Examples" icon="book">
+    Complete API documentation and example apps
+  </Step>
+</Steps>
+
+## Follow Progress
+
+<CardGroup cols={2}>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/dangvanthanh/react-native-sherpa-onnx/issues">
+    Track VAD implementation progress
+  </Card>
+  <Card title="Roadmap" icon="map" href="/roadmap">
+    View the full feature roadmap
+  </Card>
+</CardGroup>
+
+## Sherpa ONNX VAD Support
+
+The upstream [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) library **does support VAD**. Once implemented in this React Native wrapper, it will provide:
+
+- Silero VAD models
+- Real-time voice activity detection
+- Configurable thresholds and window sizes
+- Integration with streaming recognition
+
+For now, VAD functionality is available only through the native C++ API.
+
+## Workarounds
+
+Until VAD is implemented, you can:
+
+1. **Pre-process audio:** Use external tools to detect speech segments before transcription
+2. **Use streaming STT with endpoint detection:** The [Streaming STT](/features/streaming-stt) API provides endpoint detection which can serve as a basic VAD alternative
+3. **Manual segmentation:** Split audio manually or use time-based chunking
+
+## Related Features
+
+<CardGroup cols={2}>
+  <Card title="Streaming STT" icon="microphone" href="/features/streaming-stt">
+    Real-time recognition with endpoint detection
+  </Card>
+  <Card title="Diarization" icon="users" href="/features/diarization">
+    Speaker diarization (also coming soon)
+  </Card>
+</CardGroup>

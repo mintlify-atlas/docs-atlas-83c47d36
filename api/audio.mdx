@@ -1,0 +1,386 @@
+---
+title: Audio Utilities
+description: Audio processing and PCM streaming utilities
+icon: waveform
+---
+
+## Overview
+
+The audio module provides utilities for audio format conversion and real-time PCM streaming from the device microphone. These utilities are essential for working with audio in speech recognition and synthesis applications.
+
+## Types
+
+### PcmLiveStreamOptions
+
+Configuration options for PCM live streaming.
+
+<ParamField path="sampleRate" type="number" default={16000}>
+  Sample rate in Hz for audio capture. Common values: 8000, 16000, 22050, 44100, 48000.
+</ParamField>
+
+<ParamField path="channelCount" type="number" default={1}>
+  Number of audio channels (1 = mono, 2 = stereo).
+</ParamField>
+
+<ParamField path="bufferSizeFrames" type="number" default={0}>
+  Buffer size in frames. Set to 0 for automatic selection.
+</ParamField>
+
+### PcmLiveStreamHandle
+
+Handle for controlling a PCM live stream.
+
+<ResponseField name="start" type="() => Promise<void>" required>
+  Start capturing audio from the microphone.
+</ResponseField>
+
+<ResponseField name="stop" type="() => Promise<void>" required>
+  Stop capturing audio.
+</ResponseField>
+
+<ResponseField name="onData" type="(callback: (samples: Float32Array, sampleRate: number) => void) => () => void" required>
+  Register a callback for audio data. Returns unsubscribe function.
+</ResponseField>
+
+<ResponseField name="onError" type="(callback: (message: string) => void) => () => void" required>
+  Register a callback for errors. Returns unsubscribe function.
+</ResponseField>
+
+## Functions
+
+### createPcmLiveStream
+
+Create a PCM live stream from the device microphone with automatic resampling.
+
+```typescript
+function createPcmLiveStream(
+  options?: PcmLiveStreamOptions
+): PcmLiveStreamHandle
+```
+
+<ParamField path="options" type="PcmLiveStreamOptions">
+  Optional configuration for audio capture.
+</ParamField>
+
+**Returns**: Handle for controlling the stream and receiving data.
+
+**Permissions Required**:
+- **Android**: `RECORD_AUDIO` permission
+- **iOS**: `NSMicrophoneUsageDescription` in Info.plist
+
+**Example**
+
+```typescript
+import { createPcmLiveStream } from 'react-native-sherpa-onnx/audio';
+
+const stream = createPcmLiveStream({
+  sampleRate: 16000,  // 16 kHz for speech recognition
+  channelCount: 1      // Mono audio
+});
+
+// Subscribe to audio data
+const unsubscribeData = stream.onData((samples, sampleRate) => {
+  console.log(`Received ${samples.length} samples at ${sampleRate} Hz`);
+  // Process audio samples (Float32Array in range [-1, 1])
+});
+
+// Subscribe to errors
+const unsubscribeError = stream.onError((message) => {
+  console.error('Audio stream error:', message);
+});
+
+// Start capturing
+await stream.start();
+
+// ... later ...
+
+// Stop capturing
+await stream.stop();
+
+// Clean up subscriptions
+unsubscribeData();
+unsubscribeError();
+```
+
+**Notes**:
+- Native capture and resampling ensure PCM is always delivered at the requested `sampleRate`
+- Audio samples are provided as `Float32Array` normalized to range `[-1, 1]`
+- The stream automatically handles resampling from device native sample rate
+- Base64-encoded PCM is decoded internally for optimal performance
+
+---
+
+### convertAudioToFormat
+
+Convert any supported audio file to a requested format.
+
+```typescript
+function convertAudioToFormat(
+  inputPath: string,
+  outputPath: string,
+  format: string,
+  outputSampleRateHz?: number
+): Promise<void>
+```
+
+<ParamField path="inputPath" type="string" required>
+  Path to the input audio file.
+</ParamField>
+
+<ParamField path="outputPath" type="string" required>
+  Path where the converted file will be saved.
+</ParamField>
+
+<ParamField path="format" type="string" required>
+  Output format (e.g., "mp3", "flac", "wav", "m4a", "ogg").
+</ParamField>
+
+<ParamField path="outputSampleRateHz" type="number">
+  Optional output sample rate in Hz. Defaults to 44100 for MP3, format-dependent for others.
+  
+  For MP3: 32000, 44100, or 48000.
+  For WAV: Always outputs 16000 Hz mono (sherpa-onnx limitation).
+</ParamField>
+
+**Returns**: Promise that resolves on success, rejects with error message on failure.
+
+**Platform Requirements**:
+- **Android**: Requires FFmpeg prebuilts (included in library)
+- **iOS**: Uses native AVFoundation
+
+**Example**
+
+```typescript
+import { convertAudioToFormat } from 'react-native-sherpa-onnx/audio';
+import RNFS from '@dr.pogodin/react-native-fs';
+
+const inputPath = `${RNFS.DocumentDirectoryPath}/recording.m4a`;
+const outputPath = `${RNFS.DocumentDirectoryPath}/recording.mp3`;
+
+try {
+  await convertAudioToFormat(
+    inputPath,
+    outputPath,
+    'mp3',
+    48000  // 48 kHz MP3
+  );
+  console.log('Conversion successful:', outputPath);
+} catch (error) {
+  console.error('Conversion failed:', error);
+}
+```
+
+**Supported Formats**:
+- **Input**: Most common audio formats (mp3, m4a, wav, flac, ogg, aac, etc.)
+- **Output**: mp3, wav, flac, m4a, ogg, and more
+
+---
+
+### convertAudioToWav16k
+
+Convert any supported audio file to WAV 16 kHz mono 16-bit PCM format (optimized for speech processing).
+
+```typescript
+function convertAudioToWav16k(
+  inputPath: string,
+  outputPath: string
+): Promise<void>
+```
+
+<ParamField path="inputPath" type="string" required>
+  Path to the input audio file.
+</ParamField>
+
+<ParamField path="outputPath" type="string" required>
+  Path where the WAV file will be saved.
+</ParamField>
+
+**Returns**: Promise that resolves on success, rejects with error message on failure.
+
+**Output Specification**:
+- Format: WAV
+- Sample Rate: 16000 Hz (16 kHz)
+- Channels: 1 (mono)
+- Bit Depth: 16-bit PCM
+
+**Platform Requirements**:
+- **Android**: Requires FFmpeg prebuilts
+- **iOS**: Uses native sherpa-onnx conversion
+
+**Example**
+
+```typescript
+import { convertAudioToWav16k } from 'react-native-sherpa-onnx/audio';
+import RNFS from '@dr.pogodin/react-native-fs';
+
+const inputPath = `${RNFS.DocumentDirectoryPath}/recording.m4a`;
+const outputPath = `${RNFS.DocumentDirectoryPath}/recording_16k.wav`;
+
+try {
+  await convertAudioToWav16k(inputPath, outputPath);
+  console.log('Converted to 16kHz WAV:', outputPath);
+  
+  // Now use for speech recognition
+  const result = await transcribeFile(outputPath);
+} catch (error) {
+  console.error('Conversion failed:', error);
+}
+```
+
+**Use Cases**:
+- Pre-processing audio for speech-to-text
+- Standardizing audio format for ML models
+- Reducing file size while maintaining speech quality
+- Preparing audio for voice activity detection
+
+## Complete Example: Real-time Speech Recognition
+
+```typescript
+import { createPcmLiveStream } from 'react-native-sherpa-onnx/audio';
+import { createRecognizer, RecognizerType } from 'react-native-sherpa-onnx';
+
+// Create recognizer
+const recognizer = await createRecognizer({
+  type: RecognizerType.Transducer,
+  modelPath: {
+    type: 'auto',
+    path: 'models/sherpa-onnx-streaming-zipformer-en-2023-06-26'
+  }
+});
+
+// Create PCM stream
+const stream = createPcmLiveStream({
+  sampleRate: recognizer.getSampleRate(),
+  channelCount: 1
+});
+
+let isRecording = false;
+
+// Handle audio data
+const unsubscribeData = stream.onData((samples, sampleRate) => {
+  if (isRecording) {
+    // Feed samples to recognizer
+    recognizer.acceptWaveform(samples);
+    
+    // Get partial results
+    const result = recognizer.getResult();
+    if (result.text) {
+      console.log('Partial:', result.text);
+    }
+  }
+});
+
+// Handle errors
+const unsubscribeError = stream.onError((message) => {
+  console.error('Stream error:', message);
+  isRecording = false;
+});
+
+// Start recording
+isRecording = true;
+await stream.start();
+console.log('Recording started...');
+
+// ... let user speak ...
+
+// Stop recording
+isRecording = false;
+await stream.stop();
+
+// Get final result
+recognizer.inputFinished();
+const finalResult = recognizer.getResult();
+console.log('Final transcript:', finalResult.text);
+
+// Clean up
+unsubscribeData();
+unsubscribeError();
+recognizer.release();
+```
+
+## Complete Example: Audio Format Conversion
+
+```typescript
+import { convertAudioToFormat, convertAudioToWav16k } from 'react-native-sherpa-onnx/audio';
+import RNFS from '@dr.pogodin/react-native-fs';
+
+const inputFile = `${RNFS.DocumentDirectoryPath}/original.m4a`;
+
+// Convert to multiple formats
+try {
+  // High-quality MP3
+  await convertAudioToFormat(
+    inputFile,
+    `${RNFS.DocumentDirectoryPath}/output.mp3`,
+    'mp3',
+    48000
+  );
+  
+  // FLAC for lossless storage
+  await convertAudioToFormat(
+    inputFile,
+    `${RNFS.DocumentDirectoryPath}/output.flac`,
+    'flac'
+  );
+  
+  // WAV for speech recognition
+  await convertAudioToWav16k(
+    inputFile,
+    `${RNFS.DocumentDirectoryPath}/stt_ready.wav`
+  );
+  
+  console.log('All conversions successful');
+} catch (error) {
+  console.error('Conversion error:', error);
+}
+```
+
+## PCM Data Format
+
+The `onData` callback receives audio samples as `Float32Array`:
+
+```typescript
+stream.onData((samples: Float32Array, sampleRate: number) => {
+  // samples[i] is in range [-1.0, 1.0]
+  // samples.length varies based on buffer size
+  
+  // Example: Calculate RMS volume
+  const rms = Math.sqrt(
+    samples.reduce((sum, s) => sum + s * s, 0) / samples.length
+  );
+  console.log('Volume:', rms.toFixed(4));
+});
+```
+
+**Properties**:
+- Type: `Float32Array`
+- Range: `[-1.0, 1.0]` (normalized PCM)
+- Encoding: IEEE 754 single-precision float
+- Decoded from: Int16 PCM → Float32 by dividing by 32768
+
+## Internal Implementation
+
+The audio utilities use efficient internal implementations:
+
+```typescript
+// From audio/index.ts:9
+function base64PcmToFloatArray(base64: string): Float32Array {
+  const bytes = Buffer.from(base64, 'base64');
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const len = bytes.byteLength / 2;
+  const out = new Float32Array(len);
+  for (let i = 0; i < len; i++) {
+    out[i] = view.getInt16(i * 2, true) / 32768;
+  }
+  return out;
+}
+```
+
+This pre-allocated approach minimizes GC pressure on the live audio hot path.
+
+## See Also
+
+- [Speech Recognition](/api/stt) - Use PCM streams for real-time transcription
+- [Text-to-Speech](/api/tts/create-tts) - Generate audio output
+- [Model Download Manager](/api/download) - Download models for audio processing
+- [VAD](/api/vad) - Voice activity detection (planned)

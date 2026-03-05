@@ -1,0 +1,202 @@
+---
+title: Speaker Diarization
+description: API reference for speaker diarization features
+icon: users
+---
+
+<Warning>
+  **Coming Soon - Planned for v0.4.0**
+
+  Speaker Diarization is not yet implemented. This page documents the planned API interface.
+</Warning>
+
+## Overview
+
+Speaker Diarization will enable automatic identification and segmentation of different speakers in audio recordings. This feature answers the question "who spoke when?" and is useful for:
+
+- Meeting transcription with speaker labels
+- Interview processing
+- Multi-speaker content analysis
+- Call center analytics
+
+## Types
+
+### DiarizationInitializeOptions
+
+Configuration options for initializing the diarization module.
+
+<ParamField path="modelPath" type="ModelPathConfig" required>
+  Path configuration for the diarization model directory.
+
+  ```typescript
+  {
+    type: 'auto' | 'asset' | 'file',
+    path: string
+  }
+  ```
+</ParamField>
+
+### SpeakerSegment
+
+Represents a segment of audio attributed to a specific speaker.
+
+<ResponseField name="speakerId" type="string" required>
+  Unique identifier for the speaker (e.g., "speaker_0", "speaker_1").
+</ResponseField>
+
+<ResponseField name="start" type="number" required>
+  Start time of the speaker segment in seconds.
+</ResponseField>
+
+<ResponseField name="end" type="number" required>
+  End time of the speaker segment in seconds.
+</ResponseField>
+
+## Functions
+
+### initializeDiarization
+
+Initialize the Speaker Diarization module with a model.
+
+```typescript
+async function initializeDiarization(
+  options: DiarizationInitializeOptions
+): Promise<void>
+```
+
+<ParamField path="options" type="DiarizationInitializeOptions" required>
+  Configuration options including model path.
+</ParamField>
+
+**Example (Planned)**
+
+```typescript
+import { initializeDiarization } from 'react-native-sherpa-onnx/diarization';
+
+await initializeDiarization({
+  modelPath: {
+    type: 'auto',
+    path: 'models/diarization-model'
+  }
+});
+```
+
+**Throws**
+
+- Currently throws "Speaker Diarization feature is not yet implemented" error
+
+---
+
+### diarizeAudio
+
+Perform speaker diarization on an audio file.
+
+```typescript
+function diarizeAudio(
+  filePath: string
+): Promise<SpeakerSegment[]>
+```
+
+<ParamField path="filePath" type="string" required>
+  Path to the audio file to process.
+</ParamField>
+
+**Returns**
+
+Promise resolving to an array of speaker segments with speaker IDs and timestamps.
+
+**Example (Planned)**
+
+```typescript
+import { diarizeAudio } from 'react-native-sherpa-onnx/diarization';
+
+const segments = await diarizeAudio('meeting-audio.wav');
+
+for (const segment of segments) {
+  console.log(
+    `${segment.speakerId}: ${segment.start}s - ${segment.end}s`
+  );
+}
+```
+
+**Throws**
+
+- Currently throws "Speaker Diarization feature is not yet implemented" error
+
+---
+
+### unloadDiarization
+
+Release diarization resources and clean up.
+
+```typescript
+function unloadDiarization(): Promise<void>
+```
+
+**Example (Planned)**
+
+```typescript
+import { unloadDiarization } from 'react-native-sherpa-onnx/diarization';
+
+await unloadDiarization();
+```
+
+**Throws**
+
+- Currently throws "Speaker Diarization feature is not yet implemented" error
+
+## Planned Usage Flow
+
+Once implemented, the typical workflow will be:
+
+```typescript
+import {
+  initializeDiarization,
+  diarizeAudio,
+  unloadDiarization
+} from 'react-native-sherpa-onnx/diarization';
+
+// 1. Initialize diarization
+await initializeDiarization({
+  modelPath: { type: 'auto', path: 'models/diarization-model' }
+});
+
+// 2. Diarize audio file
+const segments = await diarizeAudio('meeting.wav');
+
+// 3. Group segments by speaker
+const bySpeaker = segments.reduce((acc, seg) => {
+  if (!acc[seg.speakerId]) acc[seg.speakerId] = [];
+  acc[seg.speakerId].push(seg);
+  return acc;
+}, {} as Record<string, SpeakerSegment[]>);
+
+console.log(`Detected ${Object.keys(bySpeaker).length} speakers`);
+
+// 4. Clean up
+await unloadDiarization();
+```
+
+## Integration with STT
+
+Diarization works best when combined with speech-to-text:
+
+```typescript
+// Planned integration example
+const speakers = await diarizeAudio('meeting.wav');
+const transcript = await transcribeFile('meeting.wav');
+
+// Map transcript words to speakers based on timestamps
+for (const word of transcript.words) {
+  const speaker = speakers.find(
+    s => word.timestamp >= s.start && word.timestamp <= s.end
+  );
+  console.log(`${speaker?.speakerId}: ${word.text}`);
+}
+```
+
+## See Also
+
+- [Model Download Manager](/api/download) - Download diarization models
+- [Speech Recognition](/api/stt) - Combine with STT for speaker-labeled transcripts
+- [Audio Utilities](/api/audio) - Audio conversion and processing

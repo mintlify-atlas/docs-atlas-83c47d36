@@ -1,0 +1,137 @@
+---
+title: Introduction
+description: React Native SDK for offline and streaming speech processing with sherpa-onnx
+---
+
+# React Native Sherpa ONNX
+
+React Native Sherpa ONNX is a powerful SDK that brings offline and streaming speech processing capabilities to your React Native applications using [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx).
+
+## What is React Native Sherpa ONNX?
+
+React Native Sherpa ONNX provides native TurboModule bindings for sherpa-onnx, enabling:
+
+- **Offline Speech-to-Text (STT)**: Transcribe audio files or audio samples without internet connectivity
+- **Online (Streaming) Speech-to-Text**: Real-time recognition from microphone or audio streams with partial results and endpoint detection
+- **Text-to-Speech (TTS)**: Generate high-quality speech audio from text (batch and streaming modes)
+- **Voice Activity Detection (VAD)**: Detect speech segments in audio (coming in v0.7.0)
+- **Speaker Diarization**: Identify and separate different speakers (coming in v0.4.0)
+- **Speech Enhancement**: Improve audio quality (coming in v0.5.0)
+
+All features work **completely offline** - no internet connection or cloud services required.
+
+## Key Features
+
+### Production Ready
+
+- **Full TypeScript support** with complete type definitions
+- **iOS and Android support** with automated CI/CD
+- **Multiple execution providers**: CPU, NNAPI (Android), XNNPACK, Core ML (iOS), and QNN (Android)
+- **95% size reduction** compared to v0.2.x with optimized native binaries
+
+### Flexible Model Support
+
+**Speech-to-Text Models:**
+- Zipformer/Transducer (icefall)
+- Paraformer (fast non-autoregressive)
+- Whisper (multilingual)
+- NeMo CTC
+- SenseVoice (with emotion detection)
+- Moonshine, FunASR Nano, Canary, and many more
+
+**Text-to-Speech Models:**
+- VITS (Piper, Coqui, MeloTTS)
+- Matcha (high-quality acoustic)
+- Kokoro (multi-speaker, multi-language)
+- KittenTTS (lightweight)
+- Pocket (flow-matching)
+- Zipvoice (voice cloning)
+
+### Advanced Capabilities
+
+<CardGroup cols={2}>
+  <Card title="Streaming Recognition" icon="microphone">
+    Real-time speech-to-text with partial results, endpoint detection, and microphone capture
+  </Card>
+  <Card title="Streaming TTS" icon="waveform">
+    Incremental speech generation with low time-to-first-byte for responsive playback
+  </Card>
+  <Card title="Model Auto-Detection" icon="magnifying-glass">
+    Automatic model type detection from file structure - no manual configuration needed
+  </Card>
+  <Card title="Hardware Acceleration" icon="bolt">
+    Support for NNAPI, XNNPACK, Core ML, and QNN for faster inference
+  </Card>
+</CardGroup>
+
+## Platform Support
+
+| Platform | Status | Requirements |
+|----------|--------|-------------|
+| **Android** | ✅ Production Ready | API 24+ (Android 7.0+) |
+| **iOS** | ✅ Production Ready | iOS 13.0+ |
+
+## Use Cases
+
+- **Voice assistants** with offline speech recognition
+- **Accessibility features** with text-to-speech
+- **Transcription apps** for meetings, interviews, and lectures
+- **Language learning apps** with pronunciation feedback
+- **Voice notes** and audio annotation tools
+- **Medical dictation** with specialized models
+- **Multilingual applications** supporting 100+ languages
+
+## Architecture
+
+React Native Sherpa ONNX is built as a TurboModule that:
+
+1. **Native Layer**: C++/Kotlin (Android) and Objective-C++ (iOS) bindings to sherpa-onnx
+2. **JavaScript Layer**: TypeScript API with instance-based engine management
+3. **ONNX Runtime**: Optimized inference with multiple execution providers
+4. **Model Management**: Flexible loading from assets, filesystem, or Play Asset Delivery (Android)
+
+## Getting Started
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install the library and set up your project for Android and iOS
+  </Card>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Build your first speech recognition and text-to-speech app
+  </Card>
+</CardGroup>
+
+## Example Output
+
+```typescript
+// Speech-to-Text
+const result = await stt.transcribeFile('/path/to/audio.wav');
+console.log(result.text);
+// Output: "Hello world, this is a test transcription"
+
+// Text-to-Speech
+const audio = await tts.generateSpeech('Welcome to React Native Sherpa ONNX');
+console.log(`Generated ${audio.samples.length} samples at ${audio.sampleRate}Hz`);
+// Output: Generated 48000 samples at 22050Hz
+```
+
+## Community and Support
+
+- **GitHub**: [XDcobra/react-native-sherpa-onnx](https://github.com/XDcobra/react-native-sherpa-onnx)
+- **npm**: [react-native-sherpa-onnx](https://www.npmjs.com/package/react-native-sherpa-onnx)
+- **License**: MIT
+- **Issues**: Report bugs and request features on [GitHub Issues](https://github.com/XDcobra/react-native-sherpa-onnx/issues)
+
+## Next Steps
+
+<Steps>
+  <Step title="Install the library">
+    Follow the [installation guide](/installation) to add the library to your project
+  </Step>
+  <Step title="Try the quickstart">
+    Build your first app with the [quickstart tutorial](/quickstart)
+  </Step>
+  <Step title="Explore features">
+    Dive deeper into [STT](/features/speech-to-text), [TTS](/features/text-to-speech), and other capabilities
+  </Step>
+</Steps>

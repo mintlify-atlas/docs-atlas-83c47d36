@@ -1,97 +1,256 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "React Native Sherpa ONNX"
+mode: "custom"
 ---
 
-## Setting up
+<div className="relative overflow-hidden dark:bg-[#020627] bg-white">
+  {/* Hero Section */}
+  <div className="py-20 px-4 sm:px-6 lg:px-8">
+    <div className="max-w-7xl mx-auto">
+      <div className="text-center">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold dark:text-white text-gray-900 mb-6">
+          Offline Speech Processing
+          <br />
+          <span className="dark:text-[#848c8e] text-[#848c8e]">for React Native</span>
+        </h1>
+        <p className="text-base sm:text-lg md:text-xl dark:text-gray-400 text-gray-600 max-w-3xl mx-auto mb-8">
+          Powerful on-device speech-to-text, text-to-speech, and audio processing with complete privacy. No internet required.
+        </p>
+        <div className="flex flex-wrap justify-center gap-4">
+          <a
+            href="/quickstart"
+            className="inline-flex items-center px-6 py-3 rounded-lg bg-[#238636] hover:bg-[#2ea043] text-white font-semibold transition-colors"
+          >
+            Get Started
+          </a>
+          <a
+            href="/installation"
+            className="inline-flex items-center px-6 py-3 rounded-lg border dark:border-white/30 border-gray-300 dark:bg-white/10 bg-transparent dark:text-white text-gray-900 font-semibold hover:dark:bg-white/20 hover:bg-gray-100 transition-colors"
+          >
+            Installation Guide
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+{/* Quick Start Section */}
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-4">
+    Quick Start
+  </h2>
+  <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+    Get started with React Native Sherpa ONNX in just a few steps
+  </p>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+  <Steps>
+    <Step title="Install the package">
+      Add the library to your React Native project using npm or yarn.
 
-## Make it yours
+      <CodeGroup>
+      ```bash npm
+      npm install react-native-sherpa-onnx
+      ```
 
-Design a docs site that looks great and empowers your users.
+      ```bash yarn
+      yarn add react-native-sherpa-onnx
+      ```
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+      ```bash pnpm
+      pnpm add react-native-sherpa-onnx
+      ```
+      </CodeGroup>
+    </Step>
 
-## Create beautiful pages
+    <Step title="Download a model">
+      Choose and download a pre-trained model for your use case. Models are available for various languages and tasks.
 
-Everything you need to create world-class documentation.
+      ```typescript
+      import { ModelDownloadManager } from 'react-native-sherpa-onnx/download';
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+      const manager = new ModelDownloadManager();
+      await manager.downloadModel('whisper-tiny-en');
+      ```
+    </Step>
 
-## Need inspiration?
+    <Step title="Start processing speech">
+      Create an STT or TTS engine and start processing audio.
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+      ```typescript
+      import { createSTT } from 'react-native-sherpa-onnx/stt';
+
+      const stt = await createSTT({
+        modelPath: { type: 'asset', path: 'models/whisper-tiny-en' }
+      });
+
+      const result = await stt.transcribeFile('/path/to/audio.wav');
+      console.log(result.text);
+      ```
+    </Step>
+  </Steps>
+</div>
+
+{/* Features Section */}
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-4">
+    Core Features
+  </h2>
+  <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+    Everything you need for offline speech processing
+  </p>
+
+  <CardGroup cols={2}>
+    <Card title="Speech-to-Text" icon="microphone" href="/features/speech-to-text">
+      Convert audio files to text with support for 100+ languages using models like Whisper, Paraformer, and Zipformer.
+    </Card>
+    <Card title="Streaming STT" icon="wave-square" href="/features/streaming-stt">
+      Real-time speech recognition from microphone input with partial results and endpoint detection.
+    </Card>
+    <Card title="Text-to-Speech" icon="message-text" href="/features/text-to-speech">
+      Generate natural-sounding speech from text with multiple voices and languages.
+    </Card>
+    <Card title="Streaming TTS" icon="circle-play" href="/features/streaming-tts">
+      Low-latency incremental speech generation for responsive applications.
+    </Card>
+    <Card title="Hardware Acceleration" icon="microchip" href="/core/execution-providers">
+      Leverage device-specific accelerators: NNAPI, XNNPACK, Core ML, and Qualcomm QNN.
+    </Card>
+    <Card title="Voice Activity Detection" icon="waveform-lines" href="/features/vad">
+      Detect when speech is present in an audio stream for efficient processing.
+    </Card>
+  </CardGroup>
+</div>
+
+{/* Model Support Section */}
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-4">
+    Extensive Model Support
+  </h2>
+  <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+    Compatible with a wide range of pre-trained models
+  </p>
+
+  <Tabs>
+    <Tab title="Speech-to-Text">
+      <Note>
+        Supports Whisper, Paraformer, Zipformer, NeMo CTC, WeNet CTC, SenseVoice, FunASR Nano, Moonshine, and more.
+      </Note>
+      
+      - **Whisper**: Multilingual with strong zero-shot capabilities
+      - **Paraformer**: Fast non-autoregressive recognition
+      - **Zipformer**: Balanced speed and accuracy
+      - **NeMo CTC**: Optimized for English and streaming
+      - **SenseVoice**: Emotion and punctuation detection
+
+      [View all STT models →](/guides/model-types#speech-to-text-models)
+    </Tab>
+
+    <Tab title="Text-to-Speech">
+      <Note>
+        Supports VITS, Matcha, Kokoro, Kitten, Pocket, and Zipvoice models.
+      </Note>
+
+      - **VITS**: Fast, high-quality synthesis (Piper, Coqui, MeloTTS)
+      - **Matcha**: High-quality acoustic model with vocoder
+      - **Kokoro**: Multi-speaker, multi-language support
+      - **Kitten**: Lightweight with multiple voices
+      - **Pocket**: Flow-matching TTS architecture
+
+      [View all TTS models →](/guides/model-types#text-to-speech-models)
+    </Tab>
+  </Tabs>
+</div>
+
+{/* Platform Support Section */}
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-4">
+    Platform Support
+  </h2>
+  <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+    Production-ready for iOS and Android
+  </p>
+
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="dark:bg-[#1a1d27] bg-gray-50 rounded-xl p-6 dark:border-[#27272a] border border-gray-200">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="text-3xl">📱</div>
+        <h3 className="text-xl font-semibold dark:text-white text-gray-900">Android</h3>
+      </div>
+      <ul className="space-y-2 dark:text-gray-300 text-gray-700">
+        <li>• Android 7.0+ (API 24+)</li>
+        <li>• NNAPI, XNNPACK, QNN support</li>
+        <li>• Play Asset Delivery integration</li>
+        <li>• Automatic native setup via Gradle</li>
+      </ul>
+      <a href="/guides/android-setup" className="inline-block mt-4 text-[#848c8e] hover:underline">
+        Android setup guide →
+      </a>
+    </div>
+
+    <div className="dark:bg-[#1a1d27] bg-gray-50 rounded-xl p-6 dark:border-[#27272a] border border-gray-200">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="text-3xl">🍎</div>
+        <h3 className="text-xl font-semibold dark:text-white text-gray-900">iOS</h3>
+      </div>
+      <ul className="space-y-2 dark:text-gray-300 text-gray-700">
+        <li>• iOS 13.0+</li>
+        <li>• Core ML and Neural Engine support</li>
+        <li>• Automatic framework download</li>
+        <li>• CocoaPods integration</li>
+      </ul>
+      <a href="/guides/ios-setup" className="inline-block mt-4 text-[#848c8e] hover:underline">
+        iOS setup guide →
+      </a>
+    </div>
+  </div>
+</div>
+
+{/* API Reference Section */}
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-4">
+    Explore the API
+  </h2>
+  <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+    Comprehensive API documentation with TypeScript support
+  </p>
+
+  <CardGroup cols={3}>
+    <Card title="Core Utilities" icon="toolbox" href="/api/core/utilities">
+      Model path helpers and utility functions
+    </Card>
+    <Card title="STT API" icon="file-audio" href="/api/stt/create-stt">
+      Speech-to-text functions and types
+    </Card>
+    <Card title="TTS API" icon="volume" href="/api/tts/create-tts">
+      Text-to-speech functions and types
+    </Card>
+    <Card title="Streaming STT" icon="signal-stream" href="/api/stt/streaming-stt">
+      Real-time recognition API
+    </Card>
+    <Card title="Streaming TTS" icon="waveform" href="/api/tts/streaming-tts">
+      Incremental speech synthesis
+    </Card>
+    <Card title="Model Download" icon="download" href="/api/download">
+      Download manager for pre-trained models
+    </Card>
+  </CardGroup>
+</div>
+
+{/* Closing CTA */}
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="dark:bg-[#1a1d27] bg-gray-50 rounded-2xl p-8 sm:p-12 text-center dark:border-[#27272a] border border-gray-200">
+    <h2 className="text-2xl sm:text-3xl font-bold dark:text-white text-gray-900 mb-4">
+      Ready to build offline speech features?
+    </h2>
+    <p className="text-base sm:text-lg dark:text-gray-400 text-gray-600 mb-8 max-w-2xl mx-auto">
+      Get started with React Native Sherpa ONNX and bring powerful speech processing to your mobile app.
+    </p>
+    <a
+      href="/quickstart"
+      className="inline-flex items-center px-6 py-3 rounded-lg bg-[#238636] hover:bg-[#2ea043] text-white font-semibold transition-colors"
+    >
+      Start Building
+    </a>
+  </div>
+</div>

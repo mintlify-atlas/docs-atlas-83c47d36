@@ -1,0 +1,174 @@
+---
+title: Voice Activity Detection (VAD)
+description: API reference for voice activity detection features
+icon: microphone
+---
+
+<Warning>
+  **Coming Soon - Planned for v0.7.0**
+
+  Voice Activity Detection (VAD) is not yet implemented. This page documents the planned API interface.
+</Warning>
+
+## Overview
+
+Voice Activity Detection (VAD) will enable automatic detection of speech segments in audio files, filtering out silence and non-speech audio. This is useful for:
+
+- Pre-processing audio before speech recognition
+- Reducing transcription costs by detecting speech segments
+- Building voice-activated applications
+- Audio segmentation and trimming
+
+## Types
+
+### VADInitializeOptions
+
+Configuration options for initializing the VAD module.
+
+<ParamField path="modelPath" type="ModelPathConfig" required>
+  Path configuration for the VAD model directory.
+
+  ```typescript
+  {
+    type: 'auto' | 'asset' | 'file',
+    path: string
+  }
+  ```
+</ParamField>
+
+### VoiceSegment
+
+Represents a detected voice activity segment.
+
+<ResponseField name="start" type="number" required>
+  Start time of the voice segment in seconds.
+</ResponseField>
+
+<ResponseField name="end" type="number" required>
+  End time of the voice segment in seconds.
+</ResponseField>
+
+## Functions
+
+### initializeVAD
+
+Initialize the Voice Activity Detection module with a model.
+
+```typescript
+async function initializeVAD(
+  options: VADInitializeOptions
+): Promise<void>
+```
+
+<ParamField path="options" type="VADInitializeOptions" required>
+  Configuration options including model path.
+</ParamField>
+
+**Example (Planned)**
+
+```typescript
+import { initializeVAD } from 'react-native-sherpa-onnx/vad';
+
+await initializeVAD({
+  modelPath: {
+    type: 'auto',
+    path: 'models/vad-model'
+  }
+});
+```
+
+**Throws**
+
+- Currently throws "VAD feature is not yet implemented" error
+
+---
+
+### detectVoiceActivity
+
+Detect voice activity segments in an audio file.
+
+```typescript
+function detectVoiceActivity(
+  filePath: string
+): Promise<VoiceSegment[]>
+```
+
+<ParamField path="filePath" type="string" required>
+  Path to the audio file to process.
+</ParamField>
+
+**Returns**
+
+Promise resolving to an array of voice segments with start and end timestamps.
+
+**Example (Planned)**
+
+```typescript
+import { detectVoiceActivity } from 'react-native-sherpa-onnx/vad';
+
+const segments = await detectVoiceActivity('path/to/audio.wav');
+
+for (const segment of segments) {
+  console.log(`Voice detected: ${segment.start}s - ${segment.end}s`);
+}
+```
+
+**Throws**
+
+- Currently throws "VAD feature is not yet implemented" error
+
+---
+
+### unloadVAD
+
+Release VAD resources and clean up.
+
+```typescript
+function unloadVAD(): Promise<void>
+```
+
+**Example (Planned)**
+
+```typescript
+import { unloadVAD } from 'react-native-sherpa-onnx/vad';
+
+await unloadVAD();
+```
+
+**Throws**
+
+- Currently throws "VAD feature is not yet implemented" error
+
+## Planned Usage Flow
+
+Once implemented, the typical workflow will be:
+
+```typescript
+import {
+  initializeVAD,
+  detectVoiceActivity,
+  unloadVAD
+} from 'react-native-sherpa-onnx/vad';
+
+// 1. Initialize VAD
+await initializeVAD({
+  modelPath: { type: 'auto', path: 'models/vad-model' }
+});
+
+// 2. Detect voice segments
+const segments = await detectVoiceActivity('audio.wav');
+
+// 3. Process segments
+for (const segment of segments) {
+  console.log(`Speech: ${segment.start.toFixed(2)}s - ${segment.end.toFixed(2)}s`);
+}
+
+// 4. Clean up
+await unloadVAD();
+```
+
+## See Also
+
+- [Model Download Manager](/api/download) - Download VAD models
+- [Audio Utilities](/api/audio) - Audio conversion and processing
+- [Diarization](/api/diarization) - Speaker identification (also planned)

@@ -1,0 +1,334 @@
+---
+title: Android Setup
+description: Configure React Native Sherpa ONNX for Android with execution providers and Play Asset Delivery
+---
+
+## Requirements
+
+React Native Sherpa ONNX requires the following for Android:
+
+- **Android API 24+** (Android 7.0 Nougat or higher)
+- **Compile SDK**: 36
+- **Target SDK**: 36
+- **Supported ABIs**: `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`
+- **React Native**: 0.70 or higher
+
+## Installation
+
+No additional Android setup is required after installing the package. The library automatically handles native dependencies via Gradle:
+
+```bash
+npm install react-native-sherpa-onnx
+```
+
+<Info>
+If using Yarn v3+ or Plug'n'Play, configure Node Modules linker:
+```yaml
+# .yarnrc.yml
+nodeLinker: node-modules
+```
+</Info>
+
+## Gradle Configuration
+
+### Default Configuration
+
+The library includes the following configuration in `android/build.gradle`:
+
+```gradle
+buildscript {
+  ext.SherpaOnnx = [
+    kotlinVersion: "2.0.21",
+    minSdkVersion: 24,
+    compileSdkVersion: 36,
+    targetSdkVersion: 36
+  ]
+}
+```
+
+### Supported ABIs
+
+The native libraries support all major Android ABIs:
+
+```gradle
+android {
+  defaultConfig {
+    ndk {
+      abiFilters "arm64-v8a", "armeabi-v7a", "x86", "x86_64"
+    }
+  }
+}
+```
+
+## Execution Providers
+
+React Native Sherpa ONNX supports multiple execution providers for hardware acceleration on Android:
+
+### CPU (Default)
+
+- **Provider ID**: `cpu`
+- **Always available** as fallback
+- No additional configuration required
+
+### XNNPACK (CPU-Optimized)
+
+- **Provider ID**: `xnnpack`
+- **CPU-optimized execution** for faster inference
+- Built-in support, no additional setup required
+
+```typescript
+import { getXnnpackSupport } from 'react-native-sherpa-onnx';
+
+const support = await getXnnpackSupport();
+if (support.canInit) {
+  // Use provider: 'xnnpack' for STT
+}
+```
+
+### NNAPI (Android Neural Networks API)
+
+- **Provider ID**: `nnapi`
+- **Uses GPU/DSP/NPU** via Android Neural Networks API
+- No additional libraries required
+- Available on Android API 27+
+
+```typescript
+import { getNnapiSupport } from 'react-native-sherpa-onnx';
+
+const support = await getNnapiSupport();
+if (support.canInit) {
+  // NNAPI available - can use GPU/DSP/NPU acceleration
+}
+```
+
+<Note>
+`hasAccelerator: false` but `canInit: true` means NNAPI works but may run on CPU. Use `canInit` to determine availability.
+</Note>
+
+### QNN (Qualcomm NPU)
+
+- **Provider ID**: `qnn`
+- **Qualcomm Snapdragon NPU acceleration**
+- Requires manual addition of QNN runtime libraries
+
+<Warning>
+The SDK supports QNN but **does not ship QNN runtime libraries** due to license restrictions. You must obtain and add them yourself.
+</Warning>
+
+#### Adding QNN Runtime Libraries
+
+1. **Download Qualcomm AI Runtime** (requires accepting license):
+   - [Qualcomm AI Runtime Community](https://softwarecenter.qualcomm.com/catalog/item/Qualcomm_AI_Runtime_Community)
+
+2. **Copy libraries to your app**:
+
+Place the following files in `android/app/src/main/jniLibs/arm64-v8a/`:
+
+```
+jniLibs/arm64-v8a/
+├── libonnxruntime.so
+├── libsherpa-onnx-jni.so
+├── libQnnCpu.so
+├── libQnnHtp.so
+├── libQnnHtpPrepare.so
+├── libQnnHtpV68Skel.so
+├── libQnnHtpV68Stub.so
+├── libQnnHtpV69Skel.so
+├── libQnnHtpV69Stub.so
+├── libQnnHtpV73Skel.so
+├── libQnnHtpV73Stub.so
+├── libQnnHtpV75Skel.so
+├── libQnnHtpV75Stub.so
+├── libQnnHtpV79Skel.so
+├── libQnnHtpV79Stub.so
+├── libQnnHtpV81Skel.so
+├── libQnnHtpV81Stub.so
+└── libQnnSystem.so
+```
+
+3. **Rebuild your app**:
+
+```bash
+npm run android
+```
+
+4. **Check availability**:
+
+```typescript
+import { getQnnSupport } from 'react-native-sherpa-onnx';
+
+const support = await getQnnSupport();
+if (support.canInit) {
+  // QNN available - can use Qualcomm NPU
+} else if (support.providerCompiled) {
+  // QNN built in but runtime libs missing or device unsupported
+}
+```
+
+#### Using QNN with STT
+
+```typescript
+import { createSTT } from 'react-native-sherpa-onnx/stt';
+
+const stt = await createSTT({
+  modelPath: { type: 'asset', path: 'models/my-model' },
+  modelType: 'auto',
+  provider: 'qnn', // Enable Qualcomm NPU acceleration
+});
+```
+
+<Info>
+**License Compliance**: Do not remove Qualcomm copyright notices. Include applicable QNN SDK license in your app's legal/credits section when distributing with QNN libraries.
+</Info>
+
+## Play Asset Delivery (PAD)
+
+For large model files, use Play Asset Delivery to keep your base APK size small:
+
+### Setup
+
+1. **Create asset pack module** (e.g., `android/sherpa_models/`):
+
+```gradle
+// android/sherpa_models/build.gradle
+plugins {
+    id 'com.android.asset-pack'
+}
+
+assetPack {
+    packName = "sherpa_models"
+    dynamicDelivery {
+        deliveryType = "install-time"
+    }
+}
+```
+
+2. **Add models to asset pack**:
+
+```
+sherpa_models/
+└── src/main/assets/
+    └── models/
+        ├── sherpa-onnx-whisper-tiny-en/
+        │   ├── encoder.onnx
+        │   ├── decoder.onnx
+        │   └── tokens.txt
+        └── vits-piper-en_US-lessac-low/
+            ├── model.onnx
+            └── tokens.txt
+```
+
+3. **Reference asset pack in app**:
+
+```gradle
+// android/app/build.gradle
+android {
+    assetPacks = [":sherpa_models"]
+}
+```
+
+4. **Include in settings**:
+
+```gradle
+// android/settings.gradle
+include ':sherpa_models'
+```
+
+### Using PAD Models
+
+```typescript
+import { getAssetPackPath, listModelsAtPath } from 'react-native-sherpa-onnx';
+import { createSTT } from 'react-native-sherpa-onnx/stt';
+
+// Get asset pack path
+const padPath = await getAssetPackPath('sherpa_models');
+
+if (padPath) {
+  // List available models
+  const models = await listModelsAtPath(padPath);
+  
+  // Use a model
+  const fullPath = `${padPath}/${models[0].folder}`;
+  const stt = await createSTT({
+    modelPath: { type: 'file', path: fullPath },
+    modelType: 'auto',
+  });
+}
+```
+
+<Note>
+`getAssetPackPath()` returns `null` if the app wasn't installed with the asset pack. Provide a fallback path for development builds.
+</Note>
+
+## Checking Available Providers
+
+Query all available execution providers at runtime:
+
+```typescript
+import { getAvailableProviders } from 'react-native-sherpa-onnx';
+
+const providers = await getAvailableProviders();
+// Example: ['CPU', 'NNAPI', 'XNNPACK'] or ['CPU', 'QNN', 'NNAPI', 'XNNPACK']
+
+const hasQnn = providers.some(p => p.toUpperCase() === 'QNN');
+const hasNnapi = providers.some(p => p.toUpperCase() === 'NNAPI');
+```
+
+## Disable FFmpeg or Libarchive
+
+To avoid conflicts with other libraries:
+
+### Disable FFmpeg
+
+Add to `android/gradle.properties`:
+
+```properties
+sherpaOnnxDisableFfmpeg=true
+```
+
+<Warning>
+Disabling FFmpeg will cause `convertAudioToWav16k()` and `convertAudioToFormat()` to fail at runtime.
+</Warning>
+
+### Disable Libarchive
+
+Add to `android/gradle.properties`:
+
+```properties
+sherpaOnnxDisableLibarchive=true
+```
+
+<Warning>
+Disabling libarchive will cause `extractTarBz2()` and `cancelExtractTarBz2()` to fail at runtime.
+</Warning>
+
+## Troubleshooting
+
+### "Model directory does not exist"
+
+- Verify asset path matches your `assets/` folder structure
+- Ensure models are in `app/src/main/assets/models/`
+- Rebuild the app after adding models
+
+### QNN Not Available
+
+- Confirm QNN runtime libraries are in `jniLibs/arm64-v8a/`
+- Check `getQnnSupport()` results to see specific issue
+- Ensure device has Qualcomm Snapdragon chipset with HTP support
+
+### PAD Returns Null
+
+- Install app via AAB bundle, not standard debug build
+- Use Gradle task with PAD support (e.g., `installDebugWithPad`)
+- Test with bundletool for local AAB testing
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Model Types" icon="database" href="/guides/model-types">
+    Learn about supported STT and TTS models
+  </Card>
+  <Card title="Performance" icon="gauge" href="/guides/performance">
+    Optimize model size and execution speed
+  </Card>
+</CardGroup>

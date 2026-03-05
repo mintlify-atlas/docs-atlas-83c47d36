@@ -1,0 +1,333 @@
+---
+title: iOS Setup
+description: Configure React Native Sherpa ONNX for iOS with Core ML support and XCFramework setup
+---
+
+## Requirements
+
+React Native Sherpa ONNX requires the following for iOS:
+
+- **iOS 13.0+**
+- **Xcode** with CocoaPods
+- **React Native**: 0.70 or higher
+- **Supported architectures**: `arm64` (device), `arm64` + `x86_64` (simulator)
+
+## Installation
+
+The sherpa-onnx XCFramework is **not shipped in npm** (size ~80MB). It is **downloaded automatically** when you run `pod install`.
+
+### Setup Steps
+
+1. **Install the package**:
+
+```bash
+npm install react-native-sherpa-onnx
+```
+
+<Info>
+If using Yarn v3+ or Plug'n'Play, configure Node Modules linker:
+```yaml
+# .yarnrc.yml
+nodeLinker: node-modules
+```
+</Info>
+
+2. **Navigate to iOS directory**:
+
+```bash
+cd ios
+```
+
+3. **Install dependencies**:
+
+```bash
+bundle install
+bundle exec pod install
+```
+
+The podspec automatically runs `scripts/setup-ios-framework.sh`, which:
+- Downloads the sherpa-onnx XCFramework from GitHub Releases
+- Downloads libarchive sources if needed
+- Places the XCFramework in `ios/Frameworks/`
+
+<Note>
+The framework version is pinned in `third_party/sherpa-onnx-prebuilt/IOS_RELEASE_TAG`.
+</Note>
+
+## XCFramework Details
+
+The sherpa-onnx XCFramework includes:
+
+- **C++ API**: `libsherpa-onnx-cxx-api.a` (merged into the framework)
+- **Platform slices**:
+  - `ios-arm64` (device)
+  - `ios-arm64_x86_64-simulator` (simulator)
+
+### Framework Structure
+
+```
+ios/Frameworks/sherpa_onnx.xcframework/
+├── Info.plist
+├── ios-arm64/
+│   ├── Headers/
+│   └── sherpa_onnx
+└── ios-arm64_x86_64-simulator/
+    ├── Headers/
+    └── sherpa_onnx
+```
+
+## Podspec Configuration
+
+The `SherpaOnnx.podspec` automatically configures:
+
+### Frameworks
+
+```ruby
+s.frameworks = "Foundation", "Accelerate", "CoreML", "AVFoundation", "AudioToolbox"
+s.vendored_frameworks = "ios/Frameworks/sherpa_onnx.xcframework"
+```
+
+### Header Search Paths
+
+```ruby
+HEADER_SEARCH_PATHS = "$(inherited) 
+  \"#{pod_root}/ios\" 
+  \"#{pod_root}/ios/archive\" 
+  \"#{pod_root}/ios/model_detect\" 
+  \"#{pod_root}/ios/stt\" 
+  \"#{pod_root}/ios/tts\" 
+  \"#{pod_root}/ios/online_stt\" 
+  \"#{device_headers}\" 
+  \"#{simulator_headers}\""
+```
+
+### C++ Configuration
+
+```ruby
+CLANG_CXX_LANGUAGE_STANDARD = "c++17"
+CLANG_CXX_LIBRARY = "libc++"
+OTHER_LDFLAGS = "$(inherited) -lsherpa-onnx"
+```
+
+## Core ML Support
+
+Core ML provides hardware acceleration on iOS devices with Apple Neural Engine (ANE).
+
+### Checking Core ML Availability
+
+```typescript
+import { getCoreMlSupport } from 'react-native-sherpa-onnx';
+
+const support = await getCoreMlSupport();
+
+if (support.hasAccelerator) {
+  // Apple Neural Engine available (A12+ devices, iOS 15+)
+  console.log('ANE available for acceleration');
+} else if (support.providerCompiled) {
+  // Core ML available on CPU/GPU (iOS 11+)
+  console.log('Core ML available on CPU/GPU');
+}
+```
+
+### Core ML Support Matrix
+
+| Device | Apple Neural Engine | Core ML Compiled |
+|--------|-------------------|------------------|
+| iPhone XS/XR or later (A12+) | ✅ | ✅ |
+| iPhone X or earlier | ❌ | ✅ (CPU/GPU) |
+| iOS Simulator | ❌ | ✅ (CPU) |
+| iPad Pro 2018+ (A12X+) | ✅ | ✅ |
+
+### Using Core ML with STT/TTS
+
+```typescript
+import { createSTT } from 'react-native-sherpa-onnx/stt';
+import { createTTS } from 'react-native-sherpa-onnx/tts';
+
+// Speech-to-Text with Core ML
+const stt = await createSTT({
+  modelPath: { type: 'asset', path: 'models/whisper-tiny' },
+  modelType: 'auto',
+  provider: 'coreml', // Enable Core ML acceleration
+});
+
+// Text-to-Speech with Core ML
+const tts = await createTTS({
+  modelPath: { type: 'asset', path: 'models/vits-piper' },
+  modelType: 'auto',
+  provider: 'coreml',
+});
+```
+
+<Note>
+**Performance**: Core ML acceleration is most effective on devices with ANE (A12 or later). On older devices, CPU execution may be faster.
+</Note>
+
+## Bundling Models in iOS
+
+### Adding Models as Folder References
+
+Models must be added as **folder references** (blue folders) in Xcode:
+
+1. **Drag model folder** into Xcode project
+2. **Select "Create folder references"** (shows as blue folder)
+3. **Ensure added to app target**
+4. **Verify in Copy Bundle Resources** build phase
+
+### Example Structure
+
+```
+YourApp/
+├── ios/
+│   ├── YourApp/
+│   │   └── models/ (blue folder reference)
+│   │       ├── sherpa-onnx-whisper-tiny-en/
+│   │       │   ├── encoder.onnx
+│   │       │   ├── decoder.onnx
+│   │       │   └── tokens.txt
+│   │       └── vits-piper-en_US-lessac-low/
+│   │           ├── model.onnx
+│   │           └── tokens.txt
+```
+
+### Using Bundled Models
+
+```typescript
+import { listAssetModels } from 'react-native-sherpa-onnx';
+import { createSTT } from 'react-native-sherpa-onnx/stt';
+
+// List bundled models
+const models = await listAssetModels();
+const sttModels = models.filter(m => m.hint === 'stt');
+
+// Use a bundled model
+const stt = await createSTT({
+  modelPath: { 
+    type: 'asset', 
+    path: `models/${sttModels[0].folder}` 
+  },
+  modelType: 'auto',
+});
+```
+
+<Warning>
+**Important**: Use folder references (blue), not group folders (yellow). Group folders won't preserve the directory structure in the bundle.
+</Warning>
+
+## Libarchive Compilation
+
+The podspec compiles libarchive from source for archive extraction support:
+
+- **Source location**: `third_party/libarchive_prebuilt/libarchive-ios-layout/`
+- **Version pinned in**: `third_party/libarchive_prebuilt/IOS_RELEASE_TAG`
+- **Compiled during**: `pod install`
+
+### Platform Configuration
+
+```ruby
+GCC_PREPROCESSOR_DEFINITIONS = '$(inherited) PLATFORM_CONFIG_H=\"libarchive_darwin_config.h\"'
+```
+
+This enables archive operations like:
+
+```typescript
+import { extractTarBz2 } from 'react-native-sherpa-onnx/archive';
+
+const result = await extractTarBz2(
+  '/path/to/model.tar.bz2',
+  '/path/to/extract/'
+);
+```
+
+## Advanced: Building Framework Locally
+
+For custom sherpa-onnx builds or development:
+
+### Using CI Workflow
+
+The `.github/workflows/build-sherpa-onnx-ios-framework.yml` workflow:
+- Builds the XCFramework with C++ API
+- Merges `libsherpa-onnx-cxx-api.a`
+- Publishes to GitHub Releases
+
+### Manual Build
+
+1. **Clone and build sherpa-onnx**:
+
+```bash
+git clone https://github.com/k2-fsa/sherpa-onnx.git
+cd sherpa-onnx
+# Follow sherpa-onnx iOS build instructions
+```
+
+2. **Ensure C++ API is merged**:
+
+The iOS Obj-C++ code requires `sherpa_onnx::cxx::*` symbols from the C++ API.
+
+3. **Place XCFramework**:
+
+```bash
+cp -r sherpa_onnx.xcframework /path/to/react-native-sherpa-onnx/ios/Frameworks/
+```
+
+4. **Run pod install**:
+
+```bash
+cd your-app/ios
+pod install
+```
+
+<Info>
+Refer to `third_party/sherpa-onnx-prebuilt/README.md` and the CI workflow for detailed build steps.
+</Info>
+
+## Troubleshooting
+
+### "Framework not found sherpa_onnx"
+
+- Run `pod install` to download the XCFramework
+- Check that `ios/Frameworks/sherpa_onnx.xcframework` exists
+- Verify network connection (framework is ~80MB)
+- Try running `scripts/setup-ios-framework.sh` manually
+
+### "Header not found"
+
+- Clean build folder: **Product → Clean Build Folder**
+- Delete `Pods/` and run `pod install` again
+- Verify header search paths in pod target configuration
+
+### "Model directory does not exist"
+
+- Ensure models are added as folder references (blue folders)
+- Check model path matches asset structure
+- Verify models are in Copy Bundle Resources build phase
+- Rebuild app after adding models
+
+### Libarchive Compilation Errors
+
+- Ensure `third_party/libarchive_prebuilt/IOS_RELEASE_TAG` exists
+- Check network for libarchive source download
+- Run `ios/scripts/setup-ios-libarchive.sh` manually
+- Verify patching script: `ios/scripts/patch-libarchive-includes.sh`
+
+### Simulator vs Device Builds
+
+The XCFramework includes both simulator and device slices:
+
+```ruby
+LIBRARY_SEARCH_PATHS[sdk=iphoneos*] = "$(inherited) \"#{device_slice}\""
+LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*] = "$(inherited) \"#{simulator_slice}\""
+```
+
+No manual configuration needed for switching between targets.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Model Types" icon="database" href="/guides/model-types">
+    Learn about supported STT and TTS models
+  </Card>
+  <Card title="Performance" icon="gauge" href="/guides/performance">
+    Optimize model size and execution speed
+  </Card>
+</CardGroup>

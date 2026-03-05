@@ -1,0 +1,753 @@
+---
+title: Model Download Manager
+description: Download and manage pre-trained models at runtime
+---
+
+The Model Download Manager fetches model assets from official sherpa-onnx GitHub Releases, caches them locally, verifies checksums, and exposes progress events.
+
+## Overview
+
+The download manager supports:
+
+- **Archive models** (`.tar.bz2`): Multi-file models compressed as archives
+- **Single-file models** (`.onnx`): Single ONNX files (e.g., VAD, enhancement)
+- **Progress tracking**: Download and extraction progress with speed and ETA
+- **Checksum verification**: SHA-256 validation for downloaded files
+- **Resume support**: Resume interrupted downloads
+- **Category-based organization**: STT, TTS, VAD, diarization, enhancement, separation
+
+## Quick Start
+
+Typical flow: refresh the registry, download a model, then initialize STT/TTS with the local path.
+
+```typescript
+import {
+  ModelCategory,
+  refreshModelsByCategory,
+  downloadModelByCategory,
+  getLocalModelPathByCategory,
+} from 'react-native-sherpa-onnx/download';
+import { initializeTTS } from 'react-native-sherpa-onnx/tts';
+import { fileModelPath } from 'react-native-sherpa-onnx';
+
+// 1. Refresh model list from GitHub
+await refreshModelsByCategory(ModelCategory.Tts, { forceRefresh: true });
+
+// 2. Download a model
+await downloadModelByCategory(
+  ModelCategory.Tts,
+  'vits-piper-en_US-lessac-medium'
+);
+
+// 3. Get local path
+const localPath = await getLocalModelPathByCategory(
+  ModelCategory.Tts,
+  'vits-piper-en_US-lessac-medium'
+);
+
+// 4. Initialize TTS
+if (localPath) {
+  await initializeTTS({
+    modelPath: fileModelPath(localPath),
+    modelType: 'auto',
+  });
+}
+```
+
+## Model Categories
+
+Models are organized by category:
+
+```typescript
+enum ModelCategory {
+  Tts = 'tts',
+  Stt = 'stt',
+  Vad = 'vad',
+  Diarization = 'diarization',
+  Enhancement = 'enhancement',
+  Separation = 'separation',
+}
+```
+
+| Category | GitHub Tag | Example Models |
+|----------|------------|----------------|
+| `Tts` | `tts-models` | VITS, Kokoro, Matcha |
+| `Stt` | `asr-models` | Whisper, Zipformer, Paraformer |
+| `Vad` | `asr-models` | Silero VAD |
+| `Diarization` | `speaker-segmentation-models` | Speaker segmentation |
+| `Enhancement` | `speech-enhancement-models` | Speech enhancement |
+| `Separation` | `source-separation-models` | Source separation |
+
+## Discovery and Listing
+
+### Refresh Model List
+
+Fetch the latest model list from GitHub Releases:
+
+```typescript
+import {
+  refreshModelsByCategory,
+  ModelCategory,
+} from 'react-native-sherpa-onnx/download';
+
+// Refresh TTS models
+const ttsModels = await refreshModelsByCategory(
+  ModelCategory.Tts,
+  { forceRefresh: true }
+);
+
+console.log('Available TTS models:', ttsModels.length);
+```
+
+**Parameters**:
+- `category`: Model category
+- `options` (optional):
+  - `forceRefresh`: Skip cache and fetch from GitHub
+  - `cacheTtlMinutes`: Cache TTL in minutes (default: 1440 = 24 hours)
+  - `maxRetries`: Number of retries for failed requests (default: 3)
+  - `signal`: AbortSignal for cancellation
+
+**Returns**: Array of `ModelMetaBase` (or `TtsModelMeta` for TTS)
+
+### List Cached Models
+
+Return the cached model list without fetching from GitHub:
+
+```typescript
+import {
+  listModelsByCategory,
+  ModelCategory,
+} from 'react-native-sherpa-onnx/download';
+
+const sttModels = await listModelsByCategory(ModelCategory.Stt);
+console.log('Cached STT models:', sttModels);
+```
+
+**Returns**: Array of models from cache (empty if no cache exists)
+
+### List Downloaded Models
+
+Return only models that are already downloaded on this device:
+
+```typescript
+import {
+  listDownloadedModelsByCategory,
+  ModelCategory,
+} from 'react-native-sherpa-onnx/download';
+
+const downloaded = await listDownloadedModelsByCategory(ModelCategory.Tts);
+console.log('Downloaded TTS models:', downloaded.map(m => m.id));
+```
+
+**Returns**: Array of downloaded models with metadata
+
+### Get Model by ID
+
+Retrieve metadata for a specific model:
+
+```typescript
+import {
+  getModelByIdByCategory,
+  ModelCategory,
+} from 'react-native-sherpa-onnx/download';
+
+const model = await getModelByIdByCategory(
+  ModelCategory.Stt,
+  'sherpa-onnx-whisper-tiny'
+);
+
+if (model) {
+  console.log('Model:', model.displayName);
+  console.log('Size:', (model.bytes / 1024 / 1024).toFixed(2), 'MB');
+}
+```
+
+**Returns**: `ModelMetaBase | null`
+
+## Downloading Models
+
+### Basic Download
+
+```typescript
+import {
+  downloadModelByCategory,
+  ModelCategory,
+} from 'react-native-sherpa-onnx/download';
+
+const result = await downloadModelByCategory(
+  ModelCategory.Stt,
+  'sherpa-onnx-whisper-tiny'
+);
+
+console.log('Downloaded to:', result.localPath);
+```
+
+### Download with Progress
+
+```typescript
+import {
+  downloadModelByCategory,
+  ModelCategory,
+  type DownloadProgress,
+} from 'react-native-sherpa-onnx/download';
+
+const result = await downloadModelByCategory(
+  ModelCategory.Tts,
+  'vits-piper-en_US-lessac-medium',
+  {
+    onProgress: (progress: DownloadProgress) => {
+      console.log(`Progress: ${progress.percent.toFixed(1)}%`);
+      console.log(`Phase: ${progress.phase}`); // 'downloading' | 'extracting'
+      
+      if (progress.speed) {
+        const mbps = (progress.speed / 1024 / 1024).toFixed(2);
+        console.log(`Speed: ${mbps} MB/s`);
+      }
+      
+      if (progress.eta) {
+        console.log(`ETA: ${progress.eta.toFixed(0)}s`);
+      }
+    },
+  }
+);
+```
+
+**DownloadProgress Type**:
+```typescript
+type DownloadProgress = {
+  bytesDownloaded: number;
+  totalBytes: number;
+  percent: number;
+  phase?: 'downloading' | 'extracting';
+  speed?: number;  // bytes per second
+  eta?: number;    // estimated seconds remaining
+};
+```
+
+### Download with Cancellation
+
+```typescript
+import {
+  downloadModelByCategory,
+  ModelCategory,
+} from 'react-native-sherpa-onnx/download';
+
+const abortController = new AbortController();
+
+const downloadPromise = downloadModelByCategory(
+  ModelCategory.Stt,
+  'sherpa-onnx-whisper-tiny',
+  {
+    signal: abortController.signal,
+    onProgress: (progress) => {
+      console.log(`Progress: ${progress.percent.toFixed(1)}%`);
+    },
+  }
+);
+
+// Cancel download after 5 seconds
+setTimeout(() => {
+  abortController.abort();
+  console.log('Download cancelled');
+}, 5000);
+
+try {
+  await downloadPromise;
+} catch (error) {
+  if (error.name === 'AbortError') {
+    console.log('Download was aborted');
+  }
+}
+```
+
+### Download Options
+
+```typescript
+type DownloadOptions = {
+  onProgress?: (progress: DownloadProgress) => void;
+  overwrite?: boolean;       // Delete and re-download (default: false)
+  signal?: AbortSignal;      // For cancellation
+  maxRetries?: number;       // Retry count (default: 2)
+  onChecksumIssue?: (issue: ChecksumIssue) => Promise<boolean>;
+};
+```
+
+### Resume Support
+
+Downloads automatically resume if interrupted:
+
+```typescript
+import {
+  downloadModelByCategory,
+  ModelCategory,
+} from 'react-native-sherpa-onnx/download';
+
+// First attempt (interrupted)
+try {
+  await downloadModelByCategory(
+    ModelCategory.Tts,
+    'vits-piper-en_US-lessac-medium'
+  );
+} catch (error) {
+  console.log('Download interrupted');
+}
+
+// Second attempt (resumes from where it left off)
+const result = await downloadModelByCategory(
+  ModelCategory.Tts,
+  'vits-piper-en_US-lessac-medium'
+);
+
+console.log('Download completed:', result.localPath);
+```
+
+## Progress Tracking
+
+### Subscribe to Progress
+
+Listen to progress updates for all downloads:
+
+```typescript
+import {
+  subscribeDownloadProgress,
+  type ModelCategory,
+  type DownloadProgress,
+} from 'react-native-sherpa-onnx/download';
+
+const unsubscribe = subscribeDownloadProgress(
+  (category: ModelCategory, modelId: string, progress: DownloadProgress) => {
+    console.log(`[${category}] ${modelId}: ${progress.percent.toFixed(1)}%`);
+    
+    if (progress.phase === 'downloading') {
+      console.log('Downloading...');
+    } else if (progress.phase === 'extracting') {
+      console.log('Extracting...');
+    }
+  }
+);
+
+// Call unsubscribe() when done
+// unsubscribe();
+```
+
+### Subscribe to Model List Updates
+
+Listen for model list refresh events:
+
+```typescript
+import {
+  subscribeModelsListUpdated,
+  type ModelCategory,
+  type ModelMetaBase,
+} from 'react-native-sherpa-onnx/download';
+
+const unsubscribe = subscribeModelsListUpdated(
+  (category: ModelCategory, models: ModelMetaBase[]) => {
+    console.log(`[${category}] Model list updated:`, models.length);
+  }
+);
+
+// Call unsubscribe() when done
+// unsubscribe();
+```
+
+## Local Model Management
+
+### Get Local Path
+
+Get the filesystem path for a downloaded model:
+
+```typescript
+import {
+  getLocalModelPathByCategory,
+  ModelCategory,
+} from 'react-native-sherpa-onnx/download';
+
+const localPath = await getLocalModelPathByCategory(
+  ModelCategory.Stt,
+  'sherpa-onnx-whisper-tiny'
+);
+
+if (localPath) {
+  console.log('Model path:', localPath);
+  // Use with fileModelPath() for initialization
+} else {
+  console.log('Model not downloaded');
+}
+```
+
+**Returns**: `string | null` (null if not downloaded)
+
+<Note>
+  `getLocalModelPathByCategory()` automatically updates the "last used" timestamp when called, which is useful for LRU cleanup.
+</Note>
+
+### Check if Downloaded
+
+```typescript
+import {
+  isModelDownloadedByCategory,
+  ModelCategory,
+} from 'react-native-sherpa-onnx/download';
+
+const isDownloaded = await isModelDownloadedByCategory(
+  ModelCategory.Tts,
+  'vits-piper-en_US-lessac-medium'
+);
+
+if (isDownloaded) {
+  console.log('Model is ready to use');
+}
+```
+
+### Delete Model
+
+Remove a downloaded model:
+
+```typescript
+import {
+  deleteModelByCategory,
+  ModelCategory,
+} from 'react-native-sherpa-onnx/download';
+
+await deleteModelByCategory(
+  ModelCategory.Tts,
+  'vits-piper-en_US-lessac-medium'
+);
+
+console.log('Model deleted');
+```
+
+### Clear Cache
+
+Clear the cached registry for a category:
+
+```typescript
+import {
+  clearModelCacheByCategory,
+  ModelCategory,
+} from 'react-native-sherpa-onnx/download';
+
+await clearModelCacheByCategory(ModelCategory.Tts);
+console.log('Cache cleared');
+```
+
+## Model Metadata
+
+### ModelMetaBase
+
+Base metadata for all models:
+
+```typescript
+type ModelMetaBase = {
+  id: string;              // e.g., 'sherpa-onnx-whisper-tiny'
+  displayName: string;     // e.g., 'Whisper Tiny'
+  downloadUrl: string;     // GitHub download URL
+  archiveExt: 'tar.bz2' | 'onnx';
+  bytes: number;           // File size in bytes
+  sha256?: string;         // SHA-256 checksum
+  category: ModelCategory;
+};
+```
+
+### TtsModelMeta
+
+Extended metadata for TTS models:
+
+```typescript
+type TtsModelMeta = ModelMetaBase & {
+  type: 'vits' | 'kokoro' | 'matcha' | 'kitten' | 'pocket' | 'zipvoice' | 'unknown';
+  languages: string[];     // e.g., ['en', 'fr']
+  quantization: 'fp16' | 'int8' | 'int8-quantized' | 'unknown';
+  sizeTier: 'tiny' | 'small' | 'medium' | 'large' | 'unknown';
+  category: ModelCategory.Tts;
+};
+```
+
+### Example: Display TTS Models
+
+```typescript
+import {
+  listModelsByCategory,
+  ModelCategory,
+  type TtsModelMeta,
+} from 'react-native-sherpa-onnx/download';
+
+const models = await listModelsByCategory<TtsModelMeta>(ModelCategory.Tts);
+
+for (const model of models) {
+  console.log(`${model.displayName}`);
+  console.log(`  Type: ${model.type}`);
+  console.log(`  Languages: ${model.languages.join(', ')}`);
+  console.log(`  Size: ${(model.bytes / 1024 / 1024).toFixed(2)} MB`);
+  console.log(`  Quantization: ${model.quantization}`);
+}
+```
+
+## Checksum Verification
+
+The download manager automatically validates checksums:
+
+- **Archives** (`.tar.bz2`): Validated during extraction using native hashing
+- **Single files** (`.onnx`): Validated using SHA-256 calculation
+- **Fallback**: If `checksum.txt` doesn't list a file, GitHub asset digest is used
+
+### Handle Checksum Issues
+
+```typescript
+import {
+  downloadModelByCategory,
+  ModelCategory,
+} from 'react-native-sherpa-onnx/download';
+
+const result = await downloadModelByCategory(
+  ModelCategory.Stt,
+  'sherpa-onnx-whisper-tiny',
+  {
+    onChecksumIssue: async (issue) => {
+      console.error('Checksum issue:', issue.message);
+      console.error('Reason:', issue.reason);
+      
+      // Return true to keep file, false to delete and cancel
+      return false; // Delete and cancel
+    },
+  }
+);
+```
+
+**ChecksumIssue Type**:
+```typescript
+type ChecksumIssue = {
+  category: ModelCategory;
+  id: string;
+  archivePath: string;
+  expected?: string;
+  message: string;
+  reason: 'CHECKSUM_FAILED' | 'CHECKSUM_MISMATCH';
+};
+```
+
+## Advanced Features
+
+### LRU Cleanup
+
+Automatically remove least recently used models to free disk space:
+
+```typescript
+import {
+  cleanupLeastRecentlyUsed,
+  ModelCategory,
+} from 'react-native-sherpa-onnx/download';
+
+// Clean up old TTS models, keep at least 2, free up to 500 MB
+const deletedIds = await cleanupLeastRecentlyUsed(
+  ModelCategory.Tts,
+  {
+    targetBytes: 500 * 1024 * 1024, // 500 MB
+    keepCount: 2,                    // Keep at least 2 models
+    maxModelsToDelete: 5,            // Delete at most 5 models
+  }
+);
+
+console.log('Deleted models:', deletedIds);
+```
+
+### Models with Metadata
+
+Get downloaded models with download and usage timestamps:
+
+```typescript
+import {
+  listDownloadedModelsWithMetadata,
+  ModelCategory,
+  type ModelWithMetadata,
+} from 'react-native-sherpa-onnx/download';
+
+const models = await listDownloadedModelsWithMetadata<TtsModelMeta>(
+  ModelCategory.Tts
+);
+
+for (const item of models) {
+  console.log(`Model: ${item.model.displayName}`);
+  console.log(`  Downloaded: ${item.downloadedAt}`);
+  console.log(`  Last used: ${item.lastUsed}`);
+  console.log(`  Size on disk: ${(item.sizeOnDisk ?? 0) / 1024 / 1024} MB`);
+}
+```
+
+### Cache Status
+
+Get the last update timestamp for the cached registry:
+
+```typescript
+import {
+  getModelsCacheStatusByCategory,
+  ModelCategory,
+} from 'react-native-sherpa-onnx/download';
+
+const status = await getModelsCacheStatusByCategory(ModelCategory.Stt);
+
+if (status.lastUpdated) {
+  console.log('Cache last updated:', status.lastUpdated);
+  console.log('Source:', status.source);
+} else {
+  console.log('No cache available');
+}
+```
+
+### Disk Space Check
+
+The download manager automatically checks available disk space before downloading. You can also check manually:
+
+```typescript
+import { checkDiskSpace } from 'react-native-sherpa-onnx/download';
+
+const requiredBytes = 100 * 1024 * 1024; // 100 MB
+const result = await checkDiskSpace(requiredBytes);
+
+if (result.success) {
+  console.log('Sufficient disk space available');
+} else {
+  console.error('Insufficient disk space:', result.message);
+}
+```
+
+## API Reference
+
+### Core Functions
+
+| Function | Description |
+|----------|-------------|
+| `refreshModelsByCategory(category, options?)` | Fetch latest models from GitHub |
+| `listModelsByCategory(category)` | List cached models |
+| `downloadModelByCategory(category, id, options?)` | Download a model |
+| `getLocalModelPathByCategory(category, id)` | Get local path of downloaded model |
+| `listDownloadedModelsByCategory(category)` | List downloaded models |
+| `isModelDownloadedByCategory(category, id)` | Check if model is downloaded |
+| `getModelByIdByCategory(category, id)` | Get model metadata by ID |
+| `deleteModelByCategory(category, id)` | Delete a downloaded model |
+| `clearModelCacheByCategory(category)` | Clear cached registry |
+
+### Advanced Functions
+
+| Function | Description |
+|----------|-------------|
+| `subscribeDownloadProgress(listener)` | Subscribe to download progress |
+| `subscribeModelsListUpdated(listener)` | Subscribe to model list updates |
+| `listDownloadedModelsWithMetadata(category)` | List models with LRU metadata |
+| `cleanupLeastRecentlyUsed(category, options)` | Remove least recently used models |
+| `updateModelLastUsed(category, id)` | Update last used timestamp |
+| `getModelsCacheStatusByCategory(category)` | Get cache status |
+| `getDownloadStorageBase()` | Get download storage base path |
+
+### Validation Functions
+
+| Function | Description |
+|----------|-------------|
+| `validateChecksum(filePath, expectedSha256)` | Validate file checksum |
+| `validateExtractedFiles(modelDir, category)` | Validate extracted files |
+| `checkDiskSpace(requiredBytes)` | Check available disk space |
+| `calculateFileChecksum(filePath)` | Calculate SHA-256 checksum |
+| `parseChecksumFile(content)` | Parse checksum.txt file |
+
+## Complete Example
+
+Here's a complete example showing model listing, downloading, and initialization:
+
+```typescript
+import {
+  ModelCategory,
+  refreshModelsByCategory,
+  listModelsByCategory,
+  downloadModelByCategory,
+  getLocalModelPathByCategory,
+  isModelDownloadedByCategory,
+  type TtsModelMeta,
+} from 'react-native-sherpa-onnx/download';
+import { initializeTTS } from 'react-native-sherpa-onnx/tts';
+import { fileModelPath } from 'react-native-sherpa-onnx';
+
+// 1. Refresh model list
+console.log('Fetching TTS models...');
+await refreshModelsByCategory(ModelCategory.Tts, { forceRefresh: true });
+
+// 2. List available models
+const models = await listModelsByCategory<TtsModelMeta>(ModelCategory.Tts);
+console.log(`Found ${models.length} TTS models`);
+
+// 3. Find a model
+const targetModel = models.find(m => 
+  m.type === 'vits' && 
+  m.languages.includes('en') &&
+  m.sizeTier === 'medium'
+);
+
+if (!targetModel) {
+  throw new Error('No suitable model found');
+}
+
+console.log(`Selected: ${targetModel.displayName}`);
+
+// 4. Check if already downloaded
+const isDownloaded = await isModelDownloadedByCategory(
+  ModelCategory.Tts,
+  targetModel.id
+);
+
+if (!isDownloaded) {
+  // 5. Download with progress
+  console.log('Downloading model...');
+  await downloadModelByCategory(
+    ModelCategory.Tts,
+    targetModel.id,
+    {
+      onProgress: (progress) => {
+        if (progress.phase === 'downloading') {
+          console.log(`Downloading: ${progress.percent.toFixed(1)}%`);
+        } else if (progress.phase === 'extracting') {
+          console.log(`Extracting: ${progress.percent.toFixed(1)}%`);
+        }
+      },
+    }
+  );
+  console.log('Download complete');
+}
+
+// 6. Get local path
+const localPath = await getLocalModelPathByCategory(
+  ModelCategory.Tts,
+  targetModel.id
+);
+
+if (!localPath) {
+  throw new Error('Model path not found');
+}
+
+console.log('Model path:', localPath);
+
+// 7. Initialize TTS
+console.log('Initializing TTS...');
+await initializeTTS({
+  modelPath: fileModelPath(localPath),
+  modelType: 'auto',
+});
+
+console.log('TTS ready!');
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Model Setup" icon="folder" href="/core/model-setup">
+    Configure and load models from assets or filesystem
+  </Card>
+  <Card title="Execution Providers" icon="microchip" href="/core/execution-providers">
+    Hardware acceleration with QNN, NNAPI, XNNPACK, Core ML
+  </Card>
+  <Card title="STT API" icon="microphone" href="/api/stt">
+    Initialize and use speech-to-text
+  </Card>
+  <Card title="TTS API" icon="volume" href="/api/tts">
+    Initialize and use text-to-speech
+  </Card>
+</CardGroup>

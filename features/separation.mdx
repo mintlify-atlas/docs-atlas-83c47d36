@@ -1,0 +1,248 @@
+---
+title: 'Source Separation'
+description: 'Separate voice from background music and effects'
+icon: 'waveform-lines'
+---
+
+<Note>
+  Source Separation is **not yet implemented** in React Native Sherpa ONNX. This page serves as a placeholder for future functionality.
+</Note>
+
+## Status
+
+Source separation support is **planned for a future release**. This feature will enable:
+
+- Voice/speech isolation from mixed audio
+- Music removal from recordings
+- Background sound separation
+- Multi-source audio decomposition
+- Vocal extraction from songs
+
+## Planned API
+
+The separation module will provide the following functionality:
+
+```typescript
+import { initializeSeparation, separateSources } from 'react-native-sherpa-onnx/separation';
+
+// Initialize separation with model
+await initializeSeparation({
+  modelPath: { type: 'asset', path: 'models/separation-model' },
+});
+
+// Separate audio into voice and background
+const sources = await separateSources('/path/to/mixed-audio.wav');
+// Returns: [
+//   { sourceId: 'voice', outputPath: '/path/to/voice.wav' },
+//   { sourceId: 'music', outputPath: '/path/to/music.wav' },
+//   { sourceId: 'background', outputPath: '/path/to/background.wav' },
+// ]
+
+console.log('Voice extracted to:', sources[0].outputPath);
+
+// Clean up
+await unloadSeparation();
+```
+
+## Type Definitions
+
+The following types are defined as placeholders:
+
+```typescript
+interface SeparationInitializeOptions {
+  modelPath: ModelPathConfig;
+  // Additional separation-specific options
+}
+
+interface SeparatedSource {
+  sourceId: string;     // Source identifier (e.g. 'voice', 'music', 'drums')
+  outputPath: string;   // Path to separated audio file
+  // Additional source fields
+}
+```
+
+**Source:** [src/separation/index.ts](~/workspace/source/src/separation/index.ts)
+
+## Current Status
+
+Attempting to use the separation APIs will throw an error:
+
+```typescript
+import { initializeSeparation } from 'react-native-sherpa-onnx/separation';
+
+try {
+  await initializeSeparation({ modelPath: { type: 'asset', path: 'models/separation' } });
+} catch (error) {
+  console.error(error.message);
+  // "Source Separation feature is not yet implemented. This is a placeholder module."
+}
+```
+
+## Potential Use Cases
+
+Once implemented, source separation will enable:
+
+<CardGroup cols={2}>
+  <Card title="Karaoke Creation" icon="music">
+    Extract vocals from songs to create karaoke tracks
+  </Card>
+  <Card title="Podcast Cleanup" icon="podcast">
+    Remove background music for cleaner speech transcription
+  </Card>
+  <Card title="Voice Isolation" icon="microphone">
+    Extract voice from noisy environments with music/effects
+  </Card>
+  <Card title="Audio Remixing" icon="sliders">
+    Separate instrument tracks for music production
+  </Card>
+</CardGroup>
+
+## Integration with STT
+
+When available, separation will work as a pre-processing step for better transcription:
+
+```typescript
+// Future combined workflow
+import { separateSources } from 'react-native-sherpa-onnx/separation';
+import { createSTT } from 'react-native-sherpa-onnx/stt';
+
+// 1. Separate voice from background music
+const sources = await separateSources('/path/to/music-with-voice.wav');
+const voiceTrack = sources.find(s => s.sourceId === 'voice');
+
+// 2. Transcribe isolated voice
+const stt = await createSTT({ /* ... */ });
+const result = await stt.transcribeFile(voiceTrack.outputPath);
+
+console.log('Transcript (voice only):', result.text);
+
+await stt.destroy();
+```
+
+## Separation Types
+
+Future implementation may support different separation modes:
+
+### Voice/Background Separation
+```typescript
+const sources = await separateSources('/path/to/audio.wav', {
+  mode: 'voice-background',
+});
+// Returns: voice + background
+```
+
+### Music Separation
+```typescript
+const sources = await separateSources('/path/to/song.wav', {
+  mode: 'music',
+});
+// Returns: vocals + drums + bass + other
+```
+
+### Custom Separation
+```typescript
+const sources = await separateSources('/path/to/audio.wav', {
+  targetSources: ['speech', 'music', 'noise'],
+});
+```
+
+## Real-time Separation
+
+Future support may include real-time separation for streaming audio:
+
+```typescript
+// Potential streaming separation API
+import { createSeparationStream } from 'react-native-sherpa-onnx/separation';
+
+const separator = await createSeparationStream({
+  modelPath: { type: 'asset', path: 'models/separation' },
+  mode: 'voice-background',
+});
+
+const stream = await separator.createStream();
+await stream.processChunk(mixedSamples, 16000);
+const { voice, background } = await stream.getOutput();
+```
+
+## Timeline
+
+<Steps>
+  <Step title="Phase 1: Research" icon="magnifying-glass">
+    Evaluate sherpa-onnx separation capabilities and model requirements
+  </Step>
+  <Step title="Phase 2: Model Selection" icon="cube">
+    Identify and test suitable separation models for mobile deployment
+  </Step>
+  <Step title="Phase 3: Native Implementation" icon="code">
+    Implement separation in Android and iOS native layers
+  </Step>
+  <Step title="Phase 4: JS Bridge" icon="bridge">
+    Expose separation APIs to JavaScript/TypeScript
+  </Step>
+  <Step title="Phase 5: Documentation & Examples" icon="book">
+    Complete API documentation and example apps
+  </Step>
+</Steps>
+
+## Follow Progress
+
+<CardGroup cols={2}>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/dangvanthanh/react-native-sherpa-onnx/issues">
+    Track separation implementation progress
+  </Card>
+  <Card title="Roadmap" icon="map" href="/roadmap">
+    View the full feature roadmap
+  </Card>
+</CardGroup>
+
+## Sherpa ONNX Separation Status
+
+The upstream [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) library's source separation support is under evaluation. Implementation in this React Native wrapper will follow upstream availability.
+
+Potential separation models include:
+
+- Voice/background separation (speech enhancement)
+- Music source separation (vocals, drums, bass, other)
+- Noise isolation and removal
+- Multi-speaker separation
+
+## Technical Considerations
+
+Source separation models typically:
+
+- Require significant computational resources
+- Have larger model sizes than STT/TTS models
+- Benefit from GPU acceleration
+- May have higher latency than real-time
+
+Mobile implementation will need to balance quality vs performance.
+
+## Workarounds
+
+Until separation is implemented, you can:
+
+1. **Use external tools:** Pre-process audio with desktop separation tools (e.g. Spleeter, Demucs)
+2. **Record clean audio:** Encourage recording in quiet environments without background music
+3. **Cloud-based separation:** Use cloud APIs for source separation (requires internet)
+4. **Manual editing:** Use audio editing apps to manually remove background sounds
+5. **Enhancement instead:** Use speech enhancement models (once available) for noise reduction
+
+## Comparison with Similar Features
+
+| Feature | Purpose | Status |
+|---------|---------|--------|
+| **Separation** | Isolate sources (voice, music, etc.) | Not yet implemented |
+| **Enhancement** | Remove noise, improve quality | Not yet implemented |
+| **VAD** | Detect speech segments | Not yet implemented |
+| **Diarization** | Identify speakers | Not yet implemented |
+
+## Related Features
+
+<CardGroup cols={2}>
+  <Card title="Speech Enhancement" icon="wand-magic-sparkles" href="/features/enhancement">
+    Improve audio quality by removing noise
+  </Card>
+  <Card title="Speech-to-Text" icon="file-audio" href="/features/speech-to-text">
+    Transcribe separated voice to text
+  </Card>
+</CardGroup>

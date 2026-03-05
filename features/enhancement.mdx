@@ -1,0 +1,202 @@
+---
+title: 'Speech Enhancement'
+description: 'Improve audio quality by removing noise and artifacts'
+icon: 'wand-magic-sparkles'
+---
+
+<Note>
+  Speech Enhancement is **not yet implemented** in React Native Sherpa ONNX. This page serves as a placeholder for future functionality.
+</Note>
+
+## Status
+
+Speech enhancement support is **planned for a future release**. This feature will enable:
+
+- Noise reduction and removal
+- Audio quality improvement
+- Echo and reverberation cancellation
+- Background sound suppression
+- Pre-processing for better STT accuracy
+
+## Planned API
+
+The enhancement module will provide the following functionality:
+
+```typescript
+import { initializeEnhancement, enhanceAudio } from 'react-native-sherpa-onnx/enhancement';
+
+// Initialize enhancement with model
+await initializeEnhancement({
+  modelPath: { type: 'asset', path: 'models/enhancement-model' },
+});
+
+// Enhance noisy audio
+const result = await enhanceAudio('/path/to/noisy-audio.wav');
+console.log('Enhanced audio saved to:', result.outputPath);
+
+// Clean up
+await unloadEnhancement();
+```
+
+## Type Definitions
+
+The following types are defined as placeholders:
+
+```typescript
+interface EnhancementInitializeOptions {
+  modelPath: ModelPathConfig;
+  // Additional enhancement-specific options
+}
+
+interface EnhancementResult {
+  outputPath: string;  // Path to enhanced audio file
+  // Additional result fields
+}
+```
+
+**Source:** [src/enhancement/index.ts](~/workspace/source/src/enhancement/index.ts)
+
+## Current Status
+
+Attempting to use the enhancement APIs will throw an error:
+
+```typescript
+import { initializeEnhancement } from 'react-native-sherpa-onnx/enhancement';
+
+try {
+  await initializeEnhancement({ modelPath: { type: 'asset', path: 'models/enhancement' } });
+} catch (error) {
+  console.error(error.message);
+  // "Speech Enhancement feature is not yet implemented. This is a placeholder module."
+}
+```
+
+## Potential Use Cases
+
+Once implemented, speech enhancement will enable:
+
+<CardGroup cols={2}>
+  <Card title="Noisy Recording Cleanup" icon="broom">
+    Remove background noise from recordings made in loud environments
+  </Card>
+  <Card title="Call Quality Improvement" icon="phone">
+    Enhance voice call recordings for better clarity
+  </Card>
+  <Card title="STT Pre-processing" icon="file-audio">
+    Improve transcription accuracy by enhancing audio before STT
+  </Card>
+  <Card title="Voice Message Enhancement" icon="message">
+    Clean up voice messages recorded in noisy conditions
+  </Card>
+</CardGroup>
+
+## Integration with STT
+
+When available, enhancement will work seamlessly as a pre-processing step:
+
+```typescript
+// Future combined workflow
+import { enhanceAudio } from 'react-native-sherpa-onnx/enhancement';
+import { createSTT } from 'react-native-sherpa-onnx/stt';
+
+// 1. Enhance noisy audio
+const enhanced = await enhanceAudio('/path/to/noisy-audio.wav');
+
+// 2. Transcribe enhanced audio
+const stt = await createSTT({ /* ... */ });
+const result = await stt.transcribeFile(enhanced.outputPath);
+
+console.log('Transcript (from enhanced audio):', result.text);
+
+await stt.destroy();
+```
+
+## Real-time Enhancement
+
+Future support may include real-time enhancement for streaming audio:
+
+```typescript
+// Potential streaming enhancement API
+import { createEnhancementStream } from 'react-native-sherpa-onnx/enhancement';
+
+const enhancer = await createEnhancementStream({
+  modelPath: { type: 'asset', path: 'models/enhancement' },
+});
+
+// Process audio chunks in real-time
+const stream = await enhancer.createStream();
+await stream.processChunk(noisySamples, 16000);
+const enhancedSamples = await stream.getOutput();
+```
+
+## Timeline
+
+<Steps>
+  <Step title="Phase 1: Research" icon="magnifying-glass">
+    Evaluate sherpa-onnx enhancement capabilities and model requirements
+  </Step>
+  <Step title="Phase 2: Model Selection" icon="cube">
+    Identify and test suitable enhancement models for mobile deployment
+  </Step>
+  <Step title="Phase 3: Native Implementation" icon="code">
+    Implement enhancement in Android and iOS native layers
+  </Step>
+  <Step title="Phase 4: JS Bridge" icon="bridge">
+    Expose enhancement APIs to JavaScript/TypeScript
+  </Step>
+  <Step title="Phase 5: Documentation & Examples" icon="book">
+    Complete API documentation and example apps
+  </Step>
+</Steps>
+
+## Follow Progress
+
+<CardGroup cols={2}>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/dangvanthanh/react-native-sherpa-onnx/issues">
+    Track enhancement implementation progress
+  </Card>
+  <Card title="Roadmap" icon="map" href="/roadmap">
+    View the full feature roadmap
+  </Card>
+</CardGroup>
+
+## Sherpa ONNX Enhancement Status
+
+The upstream [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) library's enhancement support is under evaluation. Implementation in this React Native wrapper will follow upstream availability.
+
+Potential enhancement models include:
+
+- Noise suppression models (RNNoise-style)
+- Speech separation models
+- Acoustic echo cancellation
+- Bandwidth extension
+
+## Workarounds
+
+Until enhancement is implemented, you can:
+
+1. **Use external tools:** Pre-process audio with desktop noise reduction tools before importing to mobile
+2. **Record in quiet environments:** Encourage users to record in low-noise settings
+3. **Use hardware solutions:** Leverage device noise cancellation features during recording
+4. **Cloud-based enhancement:** Use cloud APIs for audio enhancement (requires internet)
+5. **Manual post-processing:** Edit recordings in audio editing apps before transcription
+
+## Comparison with Similar Features
+
+| Feature | Purpose | Status |
+|---------|---------|--------|
+| **Enhancement** | Remove noise, improve quality | Not yet implemented |
+| **Separation** | Isolate voice from music/effects | Not yet implemented |
+| **VAD** | Detect speech segments | Not yet implemented |
+| **Diarization** | Identify speakers | Not yet implemented |
+
+## Related Features
+
+<CardGroup cols={2}>
+  <Card title="Speech-to-Text" icon="file-audio" href="/features/speech-to-text">
+    Transcribe audio to text (enhanced audio = better accuracy)
+  </Card>
+  <Card title="Source Separation" icon="waveform-lines" href="/features/separation">
+    Separate voice from background music
+  </Card>
+</CardGroup>

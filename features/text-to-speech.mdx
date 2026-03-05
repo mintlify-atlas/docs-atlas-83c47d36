@@ -1,0 +1,507 @@
+---
+title: 'Text-to-Speech (Offline)'
+description: 'Offline speech synthesis with React Native Sherpa ONNX'
+---
+
+## Overview
+
+The TTS module provides offline speech synthesis: create an engine with `createTTS`, then generate audio from text with `generateSpeech`. The module supports both full-buffer generation and streaming generation (see [Streaming TTS](/features/streaming-tts) for incremental generation).
+
+**Key Features:**
+- Offline TTS (no internet required)
+- Full-buffer generation with `generateSpeech()`
+- Timestamps with `generateSpeechWithTimestamps()`
+- Multi-speaker support
+- Voice cloning (Zipvoice, Pocket)
+- Runtime parameter updates
+- Model auto-detection
+- Native PCM playback
+
+## Quick Start
+
+```typescript
+import { createTTS } from 'react-native-sherpa-onnx/tts';
+
+const tts = await createTTS({
+  modelPath: {
+    type: 'asset',
+    path: 'models/sherpa-onnx-vits-piper-en_US-libritts_r-medium',
+  },
+  modelType: 'auto',
+  numThreads: 2,
+});
+
+const audio = await tts.generateSpeech('Hello, world!');
+console.log('Sample rate:', audio.sampleRate);
+console.log('Samples:', audio.samples.length);
+
+await tts.destroy();
+```
+
+## API Reference
+
+### `createTTS(options)`
+
+Create a TTS engine instance. Returns a `Promise<TtsEngine>`. You **must** call `tts.destroy()` when done to free native resources.
+
+**Type Signature:**
+```typescript
+function createTTS(
+  options: TTSInitializeOptions | ModelPathConfig
+): Promise<TtsEngine>;
+```
+
+**Options (`TTSInitializeOptions`):**
+
+<ParamField path="modelPath" type="ModelPathConfig" required>
+  Model path configuration:
+  ```typescript
+  { type: 'asset' | 'file' | 'auto', path: string }
+  ```
+  Resolved to absolute path before initialization.
+</ParamField>
+
+<ParamField path="modelType" type="TTSModelType" default="'auto'">
+  Model type: `'vits'`, `'matcha'`, `'kokoro'`, `'kitten'`, `'pocket'`, `'zipvoice'`, or `'auto'`.
+</ParamField>
+
+<ParamField path="numThreads" type="number" default="2">
+  Number of threads for inference. More threads = faster but more CPU usage.
+</ParamField>
+
+<ParamField path="debug" type="boolean" default="false">
+  Enable debug logging from the TTS engine.
+</ParamField>
+
+<ParamField path="provider" type="string">
+  Execution provider (e.g. `'cpu'`, `'coreml'`, `'xnnpack'`, `'nnapi'`, `'qnn'`).
+</ParamField>
+
+<ParamField path="modelOptions" type="TtsModelOptions">
+  Model-specific options. Only the block for the loaded model type is applied.
+</ParamField>
+
+<ParamField path="ruleFsts" type="string">
+  Path(s) to rule FSTs for text normalization.
+</ParamField>
+
+<ParamField path="ruleFars" type="string">
+  Path(s) to rule FARs for text normalization.
+</ParamField>
+
+<ParamField path="maxNumSentences" type="number" default="1">
+  Max number of sentences per streaming callback.
+</ParamField>
+
+<ParamField path="silenceScale" type="number" default="0.2">
+  Silence scale on config level.
+</ParamField>
+
+**Model-Specific Options:**
+
+<CodeGroup>
+```typescript VITS
+const tts = await createTTS({
+  modelPath: { type: 'asset', path: 'models/vits-piper-en' },
+  modelType: 'vits',
+  numThreads: 2,
+  modelOptions: {
+    vits: {
+      noiseScale: 0.667,
+      noiseScaleW: 0.8,
+      lengthScale: 1.0,
+    },
+  },
+});
+```
+
+```typescript Matcha
+const tts = await createTTS({
+  modelPath: { type: 'asset', path: 'models/matcha' },
+  modelType: 'matcha',
+  modelOptions: {
+    matcha: {
+      noiseScale: 0.667,
+      lengthScale: 1.0,
+    },
+  },
+});
+```
+
+```typescript Kokoro
+const tts = await createTTS({
+  modelPath: { type: 'asset', path: 'models/kokoro' },
+  modelType: 'kokoro',
+  modelOptions: {
+    kokoro: {
+      lengthScale: 1.2,
+    },
+  },
+});
+```
+</CodeGroup>
+
+**Source:** [src/tts/index.ts:150-223](~/workspace/source/src/tts/index.ts:150-223)
+
+### `generateSpeech(text, options?)`
+
+Generate speech audio from text. Returns `{ samples: number[]; sampleRate: number }`.
+
+**Type Signature:**
+```typescript
+generateSpeech(
+  text: string,
+  options?: TtsGenerationOptions
+): Promise<GeneratedAudio>;
+```
+
+**Options (`TtsGenerationOptions`):**
+
+<ParamField path="sid" type="number" default="0">
+  Speaker ID for multi-speaker models. Use `getNumSpeakers()` to check available speakers.
+</ParamField>
+
+<ParamField path="speed" type="number" default="1.0">
+  Speech speed multiplier. 1.0 = normal, 0.5 = half speed, 2.0 = double speed.
+</ParamField>
+
+<ParamField path="silenceScale" type="number">
+  Silence scale at generate time (model-dependent).
+</ParamField>
+
+<ParamField path="referenceAudio" type="{ samples: number[]; sampleRate: number }">
+  Reference audio for voice cloning (Zipvoice, Pocket). Mono float samples in [-1, 1].
+</ParamField>
+
+<ParamField path="referenceText" type="string">
+  Transcript of the reference audio. Required when `referenceAudio` is provided.
+</ParamField>
+
+<ParamField path="numSteps" type="number">
+  Number of steps (e.g. flow-matching steps for Pocket).
+</ParamField>
+
+<ParamField path="extra" type="Record<string, string>">
+  Model-specific options (e.g. `temperature`, `chunk_size` for Pocket).
+</ParamField>
+
+**Example:**
+```typescript
+const audio = await tts.generateSpeech('Hello, world!', {
+  sid: 0,
+  speed: 1.2,
+});
+
+console.log('Generated', audio.samples.length, 'samples at', audio.sampleRate, 'Hz');
+```
+
+**Source:** [src/tts/index.ts:238-244](~/workspace/source/src/tts/index.ts:238-244)
+
+### `generateSpeechWithTimestamps(text, options?)`
+
+Same as `generateSpeech` but returns additional `subtitles` and `estimated` (timestamps are estimated when model doesn't provide them).
+
+**Type Signature:**
+```typescript
+generateSpeechWithTimestamps(
+  text: string,
+  options?: TtsGenerationOptions
+): Promise<GeneratedAudioWithTimestamps>;
+```
+
+**Returns:**
+```typescript
+interface GeneratedAudioWithTimestamps extends GeneratedAudio {
+  subtitles: TtsSubtitleItem[];
+  estimated: boolean;
+}
+
+interface TtsSubtitleItem {
+  text: string;
+  start: number;  // seconds
+  end: number;    // seconds
+}
+```
+
+**Example:**
+```typescript
+const result = await tts.generateSpeechWithTimestamps('Hello world. How are you?');
+console.log('Estimated:', result.estimated);
+result.subtitles.forEach(sub => {
+  console.log(`${sub.start}s - ${sub.end}s: ${sub.text}`);
+});
+```
+
+**Source:** [src/tts/index.ts:246-255](~/workspace/source/src/tts/index.ts:246-255)
+
+### `updateParams(options)`
+
+Update TTS parameters at runtime without reloading the model.
+
+**Type Signature:**
+```typescript
+updateParams(options: TtsUpdateOptions): Promise<{
+  success: boolean;
+  detectedModels: Array<{ type: string; modelDir: string }>;
+}>;
+```
+
+**Example:**
+```typescript
+// Update VITS parameters
+await tts.updateParams({
+  modelType: 'vits',
+  modelOptions: {
+    vits: {
+      noiseScale: 0.7,
+      lengthScale: 1.2,
+    },
+  },
+});
+```
+
+**Source:** [src/tts/index.ts:257-283](~/workspace/source/src/tts/index.ts:257-283)
+
+### `getModelInfo()`
+
+Get model information (sample rate, number of speakers).
+
+**Type Signature:**
+```typescript
+getModelInfo(): Promise<TTSModelInfo>;
+
+interface TTSModelInfo {
+  sampleRate: number;    // Sample rate in Hz
+  numSpeakers: number;   // 0 or 1 = single-speaker, >1 = multi-speaker
+}
+```
+
+**Source:** [src/tts/index.ts:285-292](~/workspace/source/src/tts/index.ts:285-292)
+
+### `getSampleRate()`
+
+Get the model's output sample rate.
+
+**Type Signature:**
+```typescript
+getSampleRate(): Promise<number>;
+```
+
+**Source:** [src/tts/index.ts:294-297](~/workspace/source/src/tts/index.ts:294-297)
+
+### `getNumSpeakers()`
+
+Get the number of speakers available in the model.
+
+**Type Signature:**
+```typescript
+getNumSpeakers(): Promise<number>;
+```
+
+**Source:** [src/tts/index.ts:299-302](~/workspace/source/src/tts/index.ts:299-302)
+
+### `destroy()`
+
+Release TTS resources. **Must** be called when done.
+
+**Type Signature:**
+```typescript
+destroy(): Promise<void>;
+```
+
+**Source:** [src/tts/index.ts:304-308](~/workspace/source/src/tts/index.ts:304-308)
+
+## Persistence (Save/Share)
+
+### `saveAudioToFile(audio, filePath)`
+
+Save generated TTS audio to a WAV file.
+
+**Type Signature:**
+```typescript
+function saveAudioToFile(
+  audio: GeneratedAudio,
+  filePath: string
+): Promise<string>;
+```
+
+**Example:**
+```typescript
+import { createTTS, saveAudioToFile } from 'react-native-sherpa-onnx/tts';
+
+const tts = await createTTS({ /* ... */ });
+const audio = await tts.generateSpeech('Hello!');
+await saveAudioToFile(audio, '/data/user/0/com.app/output.wav');
+await tts.destroy();
+```
+
+**Source:** [src/tts/index.ts:319-328](~/workspace/source/src/tts/index.ts:319-328)
+
+### `saveAudioToContentUri(audio, directoryUri, filename)`
+
+Save generated TTS audio via Android SAF content URI.
+
+**Type Signature:**
+```typescript
+function saveAudioToContentUri(
+  audio: GeneratedAudio,
+  directoryUri: string,
+  filename: string
+): Promise<string>;
+```
+
+**Source:** [src/tts/index.ts:333-343](~/workspace/source/src/tts/index.ts:333-343)
+
+### `shareAudioFile(fileUri, mimeType?)`
+
+Share a TTS audio file (file path or content URI).
+
+**Type Signature:**
+```typescript
+function shareAudioFile(
+  fileUri: string,
+  mimeType?: string  // default: 'audio/wav'
+): Promise<void>;
+```
+
+**Source:** [src/tts/index.ts:376-382](~/workspace/source/src/tts/index.ts:376-382)
+
+## Voice Cloning
+
+When the loaded model supports it (Zipvoice or Pocket), you can pass reference audio and its transcript:
+
+```typescript
+// Load Zipvoice model
+const tts = await createTTS({
+  modelPath: { type: 'asset', path: 'models/sherpa-onnx-zipvoice-zh-en-emilia' },
+  modelType: 'zipvoice',
+});
+
+// Generate with voice cloning
+const audio = await tts.generateSpeech('Target text to speak in the reference voice', {
+  referenceAudio: { samples: refSamples, sampleRate: 22050 },
+  referenceText: 'Transcript of the reference recording',
+  numSteps: 20,
+  speed: 1.0,
+});
+
+await tts.destroy();
+```
+
+<Note>
+  **Zipvoice:** For voice cloning with Zipvoice, use `generateSpeech()`. Streaming with reference audio is not supported for Zipvoice.
+  
+  **Pocket TTS:** Streaming with reference audio is supported. You can also pass `extra: { temperature: '0.7', chunk_size: '15' }`.
+</Note>
+
+**Source:** [src/tts/index.ts:106-130](~/workspace/source/src/tts/index.ts:106-130)
+
+## Supported Model Types
+
+| Type | Description | Model-Specific Options |
+|------|-------------|------------------------|
+| `vits` | VITS models (Piper, Coqui, MeloTTS, MMS) | `noiseScale`, `noiseScaleW`, `lengthScale` |
+| `matcha` | Matcha models (acoustic + vocoder) | `noiseScale`, `lengthScale` |
+| `kokoro` | Kokoro (multi-speaker, multi-language) | `lengthScale` |
+| `kitten` | KittenTTS (lightweight, multi-speaker) | `lengthScale` |
+| `pocket` | Pocket TTS (voice cloning capable) | — |
+| `zipvoice` | Zipvoice (zero-shot voice cloning) | — |
+
+## Zipvoice: Full vs Distill
+
+<Warning>
+  **Memory requirements:** The full fp32 Zipvoice model (e.g. `sherpa-onnx-zipvoice-zh-en-emilia`, ~605 MB) uses significant RAM. On devices with **less than 8 GB RAM**, prefer the **int8 distill** variant: `sherpa-onnx-zipvoice-distill-int8-zh-en-emilia` (~104 MB).
+</Warning>
+
+- **Full Zipvoice:** encoder + decoder + **vocoder** (e.g. `vocos_24khz.onnx`), plus `tokens.txt`, `lexicon.txt`, `espeak-ng-data`.
+- **Zipvoice distill (encoder + decoder only):** These models are **detected** as zipvoice but **initialization will fail** with a clear error. The sherpa-onnx implementation requires a vocoder.
+
+The SDK checks free memory before loading Zipvoice and rejects with an actionable error if below ~800 MB.
+
+## Practical Tips
+
+<AccordionGroup>
+  <Accordion title="Sample Rate Handling">
+    Check `tts.getSampleRate()` after creation to know the model's native sample rate. If your playback path expects a different rate (e.g. 48000 Hz), resample the output to avoid pitch/tempo mismatch.
+  </Accordion>
+
+  <Accordion title="Multi-Speaker Models">
+    Use `tts.getNumSpeakers()` to determine available voices:
+    ```typescript
+    const numSpeakers = await tts.getNumSpeakers();
+    if (numSpeakers > 1) {
+      // Try different speaker IDs
+      for (let sid = 0; sid < numSpeakers; sid++) {
+        const audio = await tts.generateSpeech('Hello!', { sid });
+        // ... play or save ...
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Performance Tuning">
+    - Increase `numThreads` for faster generation on multi-core devices (default: 2)
+    - Use quantized models (int8) when available for better speed/memory
+    - Adjust `lengthScale` to control speech rate (smaller = faster)
+    - For VITS models, tune `noiseScale` and `noiseScaleW` to balance naturalness vs clarity
+  </Accordion>
+</AccordionGroup>
+
+## Complete Example
+
+```typescript
+import { createTTS, saveAudioToFile } from 'react-native-sherpa-onnx/tts';
+
+async function synthesizeSpeech(text: string) {
+  // 1. Create TTS engine
+  const tts = await createTTS({
+    modelPath: {
+      type: 'asset',
+      path: 'models/sherpa-onnx-vits-piper-en_US-libritts_r-medium',
+    },
+    modelType: 'vits',
+    numThreads: 2,
+    modelOptions: {
+      vits: {
+        noiseScale: 0.667,
+        lengthScale: 1.0,
+      },
+    },
+  });
+  
+  // 2. Get model info
+  const info = await tts.getModelInfo();
+  console.log('Sample rate:', info.sampleRate);
+  console.log('Speakers:', info.numSpeakers);
+  
+  // 3. Generate speech with timestamps
+  const result = await tts.generateSpeechWithTimestamps(text, {
+    sid: 0,
+    speed: 1.0,
+  });
+  
+  console.log('Generated', result.samples.length, 'samples');
+  console.log('Timestamps:', result.subtitles);
+  
+  // 4. Save to file
+  const outputPath = '/data/user/0/com.app/output.wav';
+  await saveAudioToFile(result, outputPath);
+  console.log('Saved to:', outputPath);
+  
+  // 5. Clean up
+  await tts.destroy();
+  
+  return result;
+}
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="Streaming TTS" icon="stream" href="/features/streaming-tts">
+    Incremental generation with chunk callbacks
+  </Card>
+  <Card title="Model Setup" icon="download" href="/guides/model-setup">
+    Download and configure TTS models
+  </Card>
+</CardGroup>

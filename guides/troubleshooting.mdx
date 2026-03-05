@@ -1,0 +1,730 @@
+---
+title: Troubleshooting
+description: Solutions for common installation, model loading, and platform-specific issues
+---
+
+## Common Installation Errors
+
+### Package Installation Issues
+
+<AccordionGroup>
+  <Accordion title="Yarn Plug'n'Play (PnP) Installation Fails">
+    **Error**: Postinstall scripts fail with Yarn v3+
+    
+    **Solution**: Configure Node Modules linker
+    
+    ```yaml
+    # .yarnrc.yml
+    nodeLinker: node-modules
+    ```
+    
+    Or set environment variable:
+    ```bash
+    YARN_NODE_LINKER=node-modules yarn install
+    ```
+  </Accordion>
+  
+  <Accordion title="'react-native-sherpa-onnx' could not be found">
+    **Error**: Module not found after installation
+    
+    **Solutions**:
+    
+    1. Clear caches and reinstall:
+    ```bash
+    rm -rf node_modules
+    npm cache clean --force
+    npm install
+    ```
+    
+    2. Clear Metro bundler cache:
+    ```bash
+    npm start -- --reset-cache
+    ```
+    
+    3. For iOS, reinstall pods:
+    ```bash
+    cd ios
+    rm -rf Pods Podfile.lock
+    pod install
+    ```
+  </Accordion>
+  
+  <Accordion title="TypeScript Declaration Errors">
+    **Error**: Cannot find type definitions
+    
+    **Solution**: Ensure TypeScript is configured correctly
+    
+    ```json
+    // tsconfig.json
+    {
+      "compilerOptions": {
+        "moduleResolution": "node",
+        "resolveJsonModule": true
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Model Loading Issues
+
+### "Model directory does not exist"
+
+<Tabs>
+  <Tab title="Bundled Assets">
+    **Check asset path and structure**:
+    
+    ```typescript
+    import { listAssetModels, resolveModelPath } from 'react-native-sherpa-onnx';
+    
+    // List available models
+    const models = await listAssetModels();
+    console.log('Available models:', models);
+    
+    // Verify path resolution
+    const resolved = await resolveModelPath({
+      type: 'asset',
+      path: 'models/whisper-tiny-en'
+    });
+    console.log('Resolved path:', resolved);
+    ```
+    
+    **Android**: Ensure models are in `app/src/main/assets/models/`
+    
+    ```
+    android/app/src/main/assets/
+    └── models/
+        └── whisper-tiny-en/
+            ├── encoder.onnx
+            ├── decoder.onnx
+            └── tokens.txt
+    ```
+    
+    **iOS**: Add models as **folder references** (blue folders) in Xcode
+    
+    - Drag folder into project
+    - Select "Create folder references"
+    - Verify in "Copy Bundle Resources" build phase
+    
+    **Rebuild** after adding models:
+    ```bash
+    # Android
+    npm run android
+    
+    # iOS
+    cd ios && pod install && cd ..
+    npm run ios
+    ```
+  </Tab>
+  
+  <Tab title="File System Paths">
+    **Verify absolute path**:
+    
+    ```typescript
+    import { listModelsAtPath } from 'react-native-sherpa-onnx';
+    import RNFS from '@dr.pogodin/react-native-fs';
+    
+    const modelDir = `${RNFS.DocumentDirectoryPath}/models`;
+    
+    // Check if directory exists
+    const exists = await RNFS.exists(modelDir);
+    console.log('Directory exists:', exists);
+    
+    if (exists) {
+      // List models
+      const models = await listModelsAtPath(modelDir);
+      console.log('Found models:', models);
+    }
+    ```
+    
+    **Ensure full path**:
+    ```typescript
+    const stt = await createSTT({
+      modelPath: { 
+        type: 'file', 
+        path: '/absolute/path/to/model' // Must be absolute
+      }
+    });
+    ```
+  </Tab>
+  
+  <Tab title="Play Asset Delivery">
+    **Check PAD availability**:
+    
+    ```typescript
+    import { getAssetPackPath } from 'react-native-sherpa-onnx';
+    
+    const padPath = await getAssetPackPath('sherpa_models');
+    
+    if (padPath === null) {
+      console.error('Asset pack not installed');
+      // Use fallback path
+    } else {
+      console.log('PAD path:', padPath);
+    }
+    ```
+    
+    **Common causes**:
+    - App not installed via AAB bundle
+    - Used `installDebug` instead of `installDebugWithPad`
+    - Asset pack not referenced in `build.gradle`
+    
+    **Solution**: Install with asset pack
+    ```bash
+    cd android
+    ./gradlew installDebugWithPad
+    ```
+    
+    Or build AAB and test with bundletool:
+    ```bash
+    ./gradlew bundleRelease
+    bundletool build-apks --bundle=app/build/outputs/bundle/release/app-release.aab --output=app.apks --mode=universal
+    bundletool install-apks --apks=app.apks
+    ```
+  </Tab>
+</Tabs>
+
+### "Cannot auto-detect model type"
+
+<Steps>
+  <Step title="Check required files">
+    Ensure all required files are present:
+    
+    ```typescript
+    import { detectSttModel } from 'react-native-sherpa-onnx/stt';
+    
+    const result = await detectSttModel(
+      { type: 'asset', path: 'models/my-model' },
+      { modelType: 'auto' }
+    );
+    
+    if (!result.success) {
+      console.error('Detection failed:', result.error);
+    }
+    ```
+    
+    **Required files by model type**:
+    - Transducer: `encoder.onnx`, `decoder.onnx`, `joiner.onnx`, `tokens.txt`
+    - Whisper: `encoder.onnx`, `decoder.onnx`, `tokens.txt`
+    - Paraformer: `model.onnx`, `tokens.txt`
+    - VITS: `model.onnx`, `tokens.txt`
+  </Step>
+  
+  <Step title="Verify file names are exact">
+    File names are **case-sensitive**. Check for typos:
+    
+    ```bash
+    # Android
+    adb shell ls /data/app/.../assets/models/my-model/
+    
+    # iOS (simulator)
+    ls ~/Library/Developer/CoreSimulator/Devices/.../Bundle/models/my-model/
+    ```
+  </Step>
+  
+  <Step title="Use explicit model type">
+    If auto-detection fails, specify the model type:
+    
+    ```typescript
+    const stt = await createSTT({
+      modelPath: { type: 'asset', path: 'models/my-model' },
+      modelType: 'whisper', // Explicit type
+    });
+    ```
+  </Step>
+</Steps>
+
+### "Quantized model not found" (preferInt8 issue)
+
+```typescript
+// Check what files exist
+import RNFS from '@dr.pogodin/react-native-fs';
+
+const modelPath = await resolveModelPath({
+  type: 'asset',
+  path: 'models/whisper-tiny'
+});
+
+const files = await RNFS.readDir(modelPath);
+console.log('Model files:', files.map(f => f.name));
+
+// If only fp32 exists, don't require int8
+const stt = await createSTT({
+  modelPath: { type: 'asset', path: 'models/whisper-tiny' },
+  preferInt8: false, // Use fp32
+});
+```
+
+## Platform-Specific Problems
+
+### Android Issues
+
+<AccordionGroup>
+  <Accordion title="Gradle Build Failures">
+    **Error**: Build fails during Gradle sync
+    
+    **Solutions**:
+    
+    1. **Clean build**:
+    ```bash
+    cd android
+    ./gradlew clean
+    cd ..
+    npm run android
+    ```
+    
+    2. **Check NDK version**:
+    ```gradle
+    // android/build.gradle
+    buildscript {
+      ext {
+        ndkVersion = "26.1.10909125" // Ensure compatible version
+      }
+    }
+    ```
+    
+    3. **Increase heap size** for large models:
+    ```properties
+    # android/gradle.properties
+    org.gradle.jvmargs=-Xmx4096m -XX:MaxPermSize=512m -XX:+HeapDumpOnOutOfMemoryError
+    ```
+  </Accordion>
+  
+  <Accordion title="Native Library Loading Failed">
+    **Error**: `UnsatisfiedLinkError` or `dlopen failed`
+    
+    **Check ABI support**:
+    ```typescript
+    import { Platform } from 'react-native';
+    
+    console.log('Android ABI:', Platform.constants.CPU_ABI);
+    // Should be one of: arm64-v8a, armeabi-v7a, x86, x86_64
+    ```
+    
+    **Verify native libs exist**:
+    ```bash
+    # Check APK contents
+    unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep "\.so"
+    
+    # Should see:
+    # lib/arm64-v8a/libsherpa-onnx-jni.so
+    # lib/arm64-v8a/libonnxruntime.so
+    ```
+    
+    **If libs missing**, rebuild with clean:
+    ```bash
+    cd android
+    ./gradlew clean
+    ./gradlew assembleDebug
+    ```
+  </Accordion>
+  
+  <Accordion title="Execution Provider Not Available">
+    **QNN not working**:
+    
+    ```typescript
+    import { getQnnSupport } from 'react-native-sherpa-onnx';
+    
+    const support = await getQnnSupport();
+    console.log('QNN support:', support);
+    
+    if (!support.canInit) {
+      if (!support.providerCompiled) {
+        console.error('QNN not compiled into build');
+      } else if (!support.hasAccelerator) {
+        console.error('QNN runtime libs missing or device unsupported');
+        // Add QNN libs to jniLibs/arm64-v8a/
+      }
+    }
+    ```
+    
+    See [Android Setup - QNN](/guides/android-setup#qnn-qualcomm-npu) for library installation.
+    
+    **NNAPI not working**:
+    ```typescript
+    import { getNnapiSupport } from 'react-native-sherpa-onnx';
+    
+    const support = await getNnapiSupport();
+    console.log('NNAPI support:', support);
+    
+    if (support.canInit && !support.hasAccelerator) {
+      console.warn('NNAPI available but no dedicated accelerator');
+      // Can still use NNAPI, may run on CPU
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="FFmpeg or Libarchive Conflicts">
+    **Error**: Duplicate symbol errors for FFmpeg/libarchive
+    
+    **Solution**: Disable conflicting library
+    
+    ```properties
+    # android/gradle.properties
+    
+    # Disable FFmpeg (convertAudioToWav16k won't work)
+    sherpaOnnxDisableFfmpeg=true
+    
+    # Disable libarchive (extractTarBz2 won't work)
+    sherpaOnnxDisableLibarchive=true
+    ```
+    
+    Then rebuild:
+    ```bash
+    cd android
+    ./gradlew clean
+    cd ..
+    npm run android
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### iOS Issues
+
+<AccordionGroup>
+  <Accordion title="XCFramework Not Found">
+    **Error**: `Framework not found sherpa_onnx`
+    
+    **Solutions**:
+    
+    1. **Run pod install** to download framework:
+    ```bash
+    cd ios
+    rm -rf Pods Podfile.lock
+    pod install
+    ```
+    
+    2. **Check framework exists**:
+    ```bash
+    ls ios/Frameworks/sherpa_onnx.xcframework
+    ```
+    
+    3. **Manual download** if automatic fails:
+    ```bash
+    bash scripts/setup-ios-framework.sh
+    ```
+    
+    4. **Check IOS_RELEASE_TAG**:
+    ```bash
+    cat third_party/sherpa-onnx-prebuilt/IOS_RELEASE_TAG
+    ```
+    
+    Framework should be available at the tagged release on GitHub.
+  </Accordion>
+  
+  <Accordion title="Header Not Found Errors">
+    **Error**: `'sherpa-onnx/c-api/c-api.h' file not found`
+    
+    **Solutions**:
+    
+    1. **Clean build folder**:
+    - Xcode: Product → Clean Build Folder (⇧⌘K)
+    
+    2. **Verify header search paths**:
+    ```bash
+    cd ios
+    pod install
+    ```
+    
+    3. **Check framework slices**:
+    ```bash
+    ls ios/Frameworks/sherpa_onnx.xcframework/ios-arm64/Headers/
+    ls ios/Frameworks/sherpa_onnx.xcframework/ios-arm64_x86_64-simulator/Headers/
+    ```
+  </Accordion>
+  
+  <Accordion title="Libarchive Build Errors">
+    **Error**: Libarchive compilation fails during pod install
+    
+    **Check sources**:
+    ```bash
+    ls third_party/libarchive_prebuilt/libarchive-ios-layout/
+    ```
+    
+    **Re-download and patch**:
+    ```bash
+    bash ios/scripts/setup-ios-libarchive.sh
+    bash ios/scripts/patch-libarchive-includes.sh third_party/libarchive_prebuilt/libarchive-ios-layout
+    ```
+    
+    **Check patched files**:
+    ```bash
+    ls ios/patched_libarchive/
+    ```
+  </Accordion>
+  
+  <Accordion title="Simulator vs Device Build Issues">
+    **Error**: Wrong architecture for simulator/device
+    
+    **Verify XCFramework has both slices**:
+    ```bash
+    cat ios/Frameworks/sherpa_onnx.xcframework/Info.plist
+    ```
+    
+    Should contain:
+    - `ios-arm64` (device)
+    - `ios-arm64_x86_64-simulator` (simulator)
+    
+    **Clean and rebuild**:
+    ```bash
+    cd ios
+    rm -rf build DerivedData
+    pod install
+    cd ..
+    npm run ios
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Runtime Errors
+
+### Transcription Failures
+
+<AccordionGroup>
+  <Accordion title="Silent Audio / Empty Transcription">
+    **Check audio format**:
+    
+    ```typescript
+    // STT expects WAV, 16kHz, mono, 16-bit PCM
+    import { convertAudioToWav16k } from 'react-native-sherpa-onnx/audio';
+    
+    const converted = await convertAudioToWav16k(
+      '/path/to/audio.mp3',
+      '/path/to/output.wav'
+    );
+    
+    const result = await stt.transcribeFile(converted.outputPath);
+    ```
+    
+    **Verify audio duration**:
+    ```typescript
+    import RNFS from '@dr.pogodin/react-native-fs';
+    
+    const stat = await RNFS.stat(audioPath);
+    console.log('Audio file size:', stat.size);
+    
+    if (stat.size < 1000) {
+      console.warn('Audio file too small, may be corrupt');
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Crash During Inference">
+    **Possible causes**:
+    - Out of memory (model too large)
+    - Incompatible execution provider
+    - Corrupt model files
+    
+    **Solutions**:
+    
+    1. **Use smaller model**:
+    ```typescript
+    // Instead of whisper-medium (769MB)
+    // Use whisper-small (244MB) or whisper-tiny (39MB)
+    const stt = await createSTT({
+      modelPath: { type: 'asset', path: 'models/whisper-tiny' },
+      preferInt8: true, // Further reduce size
+    });
+    ```
+    
+    2. **Disable problematic provider**:
+    ```typescript
+    // If crashes with 'qnn' or 'nnapi', try CPU
+    const stt = await createSTT({
+      modelPath: { type: 'asset', path: 'models/my-model' },
+      provider: 'cpu',
+    });
+    ```
+    
+    3. **Reduce thread count**:
+    ```typescript
+    const stt = await createSTT({
+      modelPath: { type: 'asset', path: 'models/my-model' },
+      numThreads: 1, // Lower = less memory
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Memory Leaks">
+    **Always destroy engines**:
+    
+    ```typescript
+    // ❌ Bad - never destroyed
+    async function transcribe() {
+      const stt = await createSTT(...);
+      return await stt.transcribeFile(path);
+    }
+    
+    // ✅ Good - properly cleaned up
+    async function transcribe() {
+      const stt = await createSTT(...);
+      try {
+        return await stt.transcribeFile(path);
+      } finally {
+        await stt.destroy();
+      }
+    }
+    ```
+    
+    **Check for multiple instances**:
+    ```typescript
+    // Reuse single instance instead of creating multiple
+    let globalStt: SttEngine | null = null;
+    
+    async function getSTT() {
+      if (!globalStt) {
+        globalStt = await createSTT(...);
+      }
+      return globalStt;
+    }
+    
+    // Cleanup on app exit
+    async function cleanup() {
+      if (globalStt) {
+        await globalStt.destroy();
+        globalStt = null;
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance Issues
+
+### Slow Inference
+
+<Steps>
+  <Step title="Check execution provider">
+    Ensure hardware acceleration is enabled:
+    
+    ```typescript
+    import { getAvailableProviders } from 'react-native-sherpa-onnx';
+    
+    const providers = await getAvailableProviders();
+    console.log('Available providers:', providers);
+    
+    // Use best available provider
+    const provider = providers.includes('QNN') ? 'qnn' :
+                     providers.includes('NNAPI') ? 'nnapi' :
+                     providers.includes('XNNPACK') ? 'xnnpack' : 'cpu';
+    
+    const stt = await createSTT({
+      modelPath: { type: 'asset', path: 'models/my-model' },
+      provider,
+    });
+    ```
+  </Step>
+  
+  <Step title="Enable quantization">
+    Use int8 models for 2-4x speedup:
+    
+    ```typescript
+    const stt = await createSTT({
+      modelPath: { type: 'asset', path: 'models/whisper-tiny' },
+      preferInt8: true,
+    });
+    ```
+  </Step>
+  
+  <Step title="Optimize threading">
+    Test different thread counts:
+    
+    ```typescript
+    const threadCounts = [1, 2, 4, 6];
+    
+    for (const numThreads of threadCounts) {
+      const stt = await createSTT({
+        modelPath: { type: 'asset', path: 'models/my-model' },
+        numThreads,
+      });
+      
+      const start = Date.now();
+      await stt.transcribeFile(audioPath);
+      console.log(`Threads ${numThreads}: ${Date.now() - start}ms`);
+      
+      await stt.destroy();
+    }
+    ```
+  </Step>
+  
+  <Step title="Use smaller model">
+    Trade accuracy for speed:
+    
+    - Whisper Tiny (39MB) instead of Small (244MB)
+    - Paraformer Small instead of Large
+    - VITS Piper Low instead of Medium
+  </Step>
+</Steps>
+
+See [Performance Optimization](/guides/performance) for detailed tuning.
+
+## How to Get Help
+
+<CardGroup cols={2}>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/XDcobra/react-native-sherpa-onnx/issues">
+    Report bugs or request features
+  </Card>
+  <Card title="Sherpa ONNX Docs" icon="book" href="https://k2-fsa.github.io/sherpa/onnx/">
+    Upstream model documentation
+  </Card>
+</CardGroup>
+
+### When Reporting Issues
+
+Include the following information:
+
+1. **Environment**:
+   ```typescript
+   import { Platform } from 'react-native';
+   import { getAvailableProviders } from 'react-native-sherpa-onnx';
+   
+   console.log('Platform:', Platform.OS, Platform.Version);
+   console.log('Available providers:', await getAvailableProviders());
+   ```
+
+2. **Package version**:
+   ```bash
+   npm list react-native-sherpa-onnx
+   ```
+
+3. **Model details**:
+   - Model type and source
+   - Model size
+   - How model was added (bundled/PAD/downloaded)
+
+4. **Error message**:
+   - Full error stack trace
+   - Steps to reproduce
+
+5. **Configuration**:
+   ```typescript
+   const config = {
+     modelPath: { type: 'asset', path: 'models/my-model' },
+     modelType: 'whisper',
+     preferInt8: true,
+     provider: 'cpu',
+     numThreads: 2,
+   };
+   console.log('STT config:', config);
+   ```
+
+<Note>
+**Before reporting**: Search existing issues to avoid duplicates. Check the [Troubleshooting](#) and [Performance](/guides/performance) guides first.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Android Setup" icon="android" href="/guides/android-setup">
+    Android configuration and execution providers
+  </Card>
+  <Card title="iOS Setup" icon="apple" href="/guides/ios-setup">
+    iOS configuration and Core ML support
+  </Card>
+  <Card title="Model Types" icon="database" href="/guides/model-types">
+    Comprehensive model guide
+  </Card>
+  <Card title="Performance" icon="gauge" href="/guides/performance">
+    Optimization tips and best practices
+  </Card>
+</CardGroup>

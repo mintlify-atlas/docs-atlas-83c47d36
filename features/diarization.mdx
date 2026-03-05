@@ -1,0 +1,179 @@
+---
+title: 'Speaker Diarization'
+description: 'Identify and segment speakers in audio'
+icon: 'users'
+---
+
+<Note>
+  Speaker Diarization is **not yet implemented** in React Native Sherpa ONNX. This page serves as a placeholder for future functionality.
+</Note>
+
+## Status
+
+Speaker diarization support is **planned for a future release**. This feature will enable:
+
+- Identification of different speakers in audio
+- Speaker segmentation (who spoke when)
+- Speaker counting and clustering
+- Integration with STT for speaker-attributed transcripts
+
+## Planned API
+
+The diarization module will provide the following functionality:
+
+```typescript
+import { initializeDiarization, diarizeAudio } from 'react-native-sherpa-onnx/diarization';
+
+// Initialize diarization with model
+await initializeDiarization({
+  modelPath: { type: 'asset', path: 'models/diarization-model' },
+});
+
+// Perform speaker diarization
+const segments = await diarizeAudio('/path/to/audio.wav');
+// Returns: [
+//   { speakerId: 'speaker_0', start: 0.5, end: 2.3 },
+//   { speakerId: 'speaker_1', start: 2.3, end: 5.2 },
+//   { speakerId: 'speaker_0', start: 5.2, end: 7.1 },
+//   ...
+// ]
+
+// Clean up
+await unloadDiarization();
+```
+
+## Type Definitions
+
+The following types are defined as placeholders:
+
+```typescript
+interface DiarizationInitializeOptions {
+  modelPath: ModelPathConfig;
+  // Additional diarization-specific options
+}
+
+interface SpeakerSegment {
+  speakerId: string;  // Speaker identifier (e.g. 'speaker_0', 'speaker_1')
+  start: number;      // Start time in seconds
+  end: number;        // End time in seconds
+  // Additional segment fields
+}
+```
+
+**Source:** [src/diarization/index.ts](~/workspace/source/src/diarization/index.ts)
+
+## Current Status
+
+Attempting to use the diarization APIs will throw an error:
+
+```typescript
+import { initializeDiarization } from 'react-native-sherpa-onnx/diarization';
+
+try {
+  await initializeDiarization({ modelPath: { type: 'asset', path: 'models/diarization' } });
+} catch (error) {
+  console.error(error.message);
+  // "Speaker Diarization feature is not yet implemented. This is a placeholder module."
+}
+```
+
+## Potential Use Cases
+
+Once implemented, speaker diarization will enable:
+
+<CardGroup cols={2}>
+  <Card title="Meeting Transcription" icon="users-rectangle">
+    Attribute each part of a meeting transcript to the correct speaker
+  </Card>
+  <Card title="Interview Analysis" icon="microphone-lines">
+    Separate interviewer and interviewee in recordings
+  </Card>
+  <Card title="Podcast Processing" icon="podcast">
+    Identify and segment multiple podcast hosts and guests
+  </Card>
+  <Card title="Call Center Analytics" icon="phone">
+    Distinguish customer and agent in support calls
+  </Card>
+</CardGroup>
+
+## Integration with STT
+
+When available, diarization will integrate seamlessly with speech recognition:
+
+```typescript
+// Future combined workflow
+const diarization = await diarizeAudio('/path/to/audio.wav');
+const stt = await createSTT({ /* ... */ });
+
+for (const segment of diarization) {
+  // Extract audio for this speaker segment
+  const segmentAudio = extractAudioSegment(audioFile, segment.start, segment.end);
+  
+  // Transcribe this speaker's segment
+  const result = await stt.transcribeSamples(segmentAudio, 16000);
+  
+  console.log(`${segment.speakerId} (${segment.start}s - ${segment.end}s): ${result.text}`);
+}
+```
+
+## Timeline
+
+<Steps>
+  <Step title="Phase 1: Research" icon="magnifying-glass">
+    Evaluate sherpa-onnx diarization capabilities and model availability
+  </Step>
+  <Step title="Phase 2: Native Implementation" icon="code">
+    Implement diarization in Android and iOS native layers
+  </Step>
+  <Step title="Phase 3: JS Bridge" icon="bridge">
+    Expose diarization APIs to JavaScript/TypeScript
+  </Step>
+  <Step title="Phase 4: STT Integration" icon="link">
+    Integrate with STT for speaker-attributed transcripts
+  </Step>
+  <Step title="Phase 5: Documentation & Examples" icon="book">
+    Complete API documentation and example apps
+  </Step>
+</Steps>
+
+## Follow Progress
+
+<CardGroup cols={2}>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/dangvanthanh/react-native-sherpa-onnx/issues">
+    Track diarization implementation progress
+  </Card>
+  <Card title="Roadmap" icon="map" href="/roadmap">
+    View the full feature roadmap
+  </Card>
+</CardGroup>
+
+## Sherpa ONNX Diarization Status
+
+The upstream [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) library's diarization support is under active development. Implementation in this React Native wrapper will follow upstream availability.
+
+Once available, the feature will support:
+
+- Speaker embedding models
+- Clustering algorithms for speaker identification
+- Real-time diarization (streaming mode)
+- Configurable number of speakers or automatic detection
+
+## Workarounds
+
+Until diarization is implemented, you can:
+
+1. **Use external services:** Cloud-based diarization APIs (e.g. AWS Transcribe, Google Speech-to-Text)
+2. **Pre-process audio:** Use desktop tools to segment speakers before mobile transcription
+3. **Manual annotation:** Manually label speaker segments in your application
+4. **Single-speaker assumption:** Process audio as single-speaker until diarization is available
+
+## Related Features
+
+<CardGroup cols={2}>
+  <Card title="Speech-to-Text" icon="file-audio" href="/features/speech-to-text">
+    Transcribe audio to text
+  </Card>
+  <Card title="VAD" icon="microphone" href="/features/vad">
+    Voice activity detection (also coming soon)
+  </Card>
+</CardGroup>

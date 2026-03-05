@@ -1,0 +1,482 @@
+---
+title: Execution Providers
+description: Hardware acceleration support with QNN, NNAPI, XNNPACK, and Core ML
+---
+
+React Native Sherpa ONNX supports multiple execution providers for hardware acceleration on Android and iOS.
+
+## Supported Providers
+
+<CardGroup cols={2}>
+  <Card title="CPU" icon="microchip">
+    Default fallback, always available on all platforms
+  </Card>
+  <Card title="Core ML" icon="apple">
+    iOS only. Apple Neural Engine acceleration when available
+  </Card>
+  <Card title="XNNPACK" icon="bolt">
+    CPU-optimized execution provider for Android/iOS
+  </Card>
+  <Card title="NNAPI" icon="android">
+    Android only. Uses GPU/DSP/NPU via Android Neural Networks API
+  </Card>
+  <Card title="QNN" icon="rocket">
+    Android only. Qualcomm NPU acceleration (requires QNN runtime libs)
+  </Card>
+</CardGroup>
+
+## Provider Overview
+
+| Provider | Platform | Hardware | Requires Setup |
+|----------|----------|----------|----------------|
+| CPU | Android, iOS | CPU | No |
+| Core ML | iOS | Neural Engine | No |
+| XNNPACK | Android, iOS | CPU (optimized) | No |
+| NNAPI | Android | GPU/DSP/NPU | No |
+| QNN | Android | Qualcomm NPU | **Yes** |
+
+<Warning>
+  **QNN Runtime Libraries Not Included**
+  
+  The SDK supports QNN (sherpa-onnx/ONNX Runtime are built with QNN), but for **license reasons** we do not ship the Qualcomm QNN runtime libraries. You must download and add them yourself.
+</Warning>
+
+## Check Provider Support
+
+### Get Available Providers
+
+Query which ONNX Runtime execution providers are available:
+
+```typescript
+import { getAvailableProviders } from 'react-native-sherpa-onnx';
+
+const providers = await getAvailableProviders();
+console.log('Available providers:', providers);
+// Example: ['CPU', 'QNN', 'NNAPI', 'XNNPACK']
+
+const hasQnn = providers.some(p => p.toUpperCase() === 'QNN');
+if (hasQnn) {
+  // Offer "Use NPU (QNN)" in settings UI
+}
+```
+
+### AccelerationSupport Type
+
+All acceleration check functions return a unified format:
+
+```typescript
+type AccelerationSupport = {
+  providerCompiled: boolean;  // EP built into ORT/SDK?
+  hasAccelerator: boolean;    // Hardware accelerator present?
+  canInit: boolean;           // Can create session with EP?
+};
+```
+
+| Field | Description |
+|-------|-------------|
+| `providerCompiled` | Whether the execution provider is compiled into ONNX Runtime |
+| `hasAccelerator` | Whether hardware accelerator (NPU/ANE) is detected |
+| `canInit` | Whether a session with this EP can be created (tested with embedded model) |
+
+## QNN (Qualcomm NPU)
+
+<Steps>
+  <Step title="Download QNN Runtime">
+    Download the [Qualcomm AI Runtime Community](https://softwarecenter.qualcomm.com/catalog/item/Qualcomm_AI_Runtime_Community) and accept the license.
+  </Step>
+  
+  <Step title="Copy Runtime Libraries">
+    Copy QNN runtime libraries (e.g., `libQnnHtp.so`, `libQnnHtpV*Stub.so`, `libQnnSystem.so`) to your app's native libs:
+
+    ```
+    android/app/src/main/jniLibs/arm64-v8a/
+    ├── libQnnHtp.so
+    ├── libQnnHtpPrepare.so
+    ├── libQnnHtpV75Skel.so
+    ├── libQnnHtpV75Stub.so
+    ├── libQnnSystem.so
+    └── ... (other QNN libs)
+    ```
+
+    See [sherpa-onnx QNN docs](https://k2-fsa.github.io/sherpa/onnx/qnn/run-executables-on-your-phone-binary.html) for the exact list.
+  </Step>
+  
+  <Step title="Rebuild App">
+    Rebuild the app. After this, `getQnnSupport().canInit` will be `true` on supported devices.
+  </Step>
+</Steps>
+
+### Check QNN Support
+
+```typescript
+import { getQnnSupport } from 'react-native-sherpa-onnx';
+
+const support = await getQnnSupport();
+
+if (support.canInit) {
+  console.log('QNN ready: Use provider "qnn" for STT');
+} else if (support.providerCompiled) {
+  console.log('QNN built in but not available on this device');
+} else {
+  console.log('QNN not compiled in');
+}
+```
+
+### Use QNN Provider
+
+```typescript
+import { initializeSTT } from 'react-native-sherpa-onnx/stt';
+import { assetModelPath } from 'react-native-sherpa-onnx';
+
+await initializeSTT({
+  modelPath: assetModelPath('models/sherpa-onnx-whisper-tiny-en'),
+  modelType: 'auto',
+  provider: 'qnn', // Use Qualcomm NPU
+});
+```
+
+### QNN Support Matrix
+
+| Situation | `providerCompiled` | `hasAccelerator` | `canInit` |
+|-----------|-------------------|-----------------|----------|
+| QNN runtime libs added, supported device | ✅ | ✅ | ✅ |
+| QNN runtime libs not added | ✅ | ❌ | ❌ |
+| Build without QNN | ❌ | ❌ | ❌ |
+| QNN libs present but device/backend init fails | ✅ | ❌ | ❌ |
+| iOS (QNN is Android-only) | ❌ | ❌ | ❌ |
+
+<Info>
+  **License Compliance**
+  
+  The Qualcomm AI Stack License allows you to distribute QNN runtime libraries only in object code and only as part of your application—not on a standalone basis. Do not remove Qualcomm's copyright or proprietary notices.
+</Info>
+
+## NNAPI (Android)
+
+Android Neural Networks API provides access to GPU/DSP/NPU acceleration.
+
+### Check NNAPI Support
+
+```typescript
+import { getNnapiSupport } from 'react-native-sherpa-onnx';
+
+const support = await getNnapiSupport();
+
+if (support.canInit) {
+  console.log('NNAPI ready');
+  if (support.hasAccelerator) {
+    console.log('Dedicated accelerator (GPU/DSP/NPU) available');
+  } else {
+    console.log('NNAPI works, may run on CPU');
+  }
+}
+```
+
+### Use NNAPI Provider
+
+```typescript
+import { initializeSTT } from 'react-native-sherpa-onnx/stt';
+import { assetModelPath } from 'react-native-sherpa-onnx';
+
+await initializeSTT({
+  modelPath: assetModelPath('models/sherpa-onnx-streaming-zipformer'),
+  modelType: 'auto',
+  provider: 'nnapi', // Use NNAPI
+});
+```
+
+### NNAPI hasAccelerator vs canInit
+
+<Note>
+  `hasAccelerator` and `canInit` answer different questions:
+  
+  - **`hasAccelerator`**: Does the device report a dedicated NNAPI accelerator (GPU/DSP/NPU) via the NDK API?
+  - **`canInit`**: Can ONNX Runtime create a session with the NNAPI EP?
+  
+  NNAPI can run on CPU even when `hasAccelerator` is `false`, so you may see `hasAccelerator: false, canInit: true`. Use `canInit` to decide if you can use `provider: 'nnapi'`.
+</Note>
+
+### NNAPI Support Matrix
+
+| Situation | `providerCompiled` | `hasAccelerator` | `canInit` |
+|-----------|-------------------|-----------------|----------|
+| Device reports accelerator, session OK | ✅ | ✅ | ✅ |
+| No accelerator reported, session OK (CPU) | ✅ | ❌ | ✅ |
+| NNAPI in build, session fails | ✅ | * | ❌ |
+| Build without NNAPI | ❌ | ❌ | ❌ |
+| iOS (NNAPI is Android-only) | ❌ | ❌ | ❌ |
+
+## XNNPACK
+
+CPU-optimized execution provider for mobile.
+
+### Check XNNPACK Support
+
+```typescript
+import { getXnnpackSupport } from 'react-native-sherpa-onnx';
+
+const support = await getXnnpackSupport();
+
+if (support.canInit) {
+  console.log('XNNPACK ready');
+}
+```
+
+### Use XNNPACK Provider
+
+```typescript
+import { initializeSTT } from 'react-native-sherpa-onnx/stt';
+import { assetModelPath } from 'react-native-sherpa-onnx';
+
+await initializeSTT({
+  modelPath: assetModelPath('models/sherpa-onnx-whisper-tiny-en'),
+  modelType: 'auto',
+  provider: 'xnnpack', // Use XNNPACK
+});
+```
+
+### XNNPACK Support Matrix
+
+| Situation | `providerCompiled` | `hasAccelerator` | `canInit` |
+|-----------|-------------------|-----------------|----------|
+| Build has XNNPACK | ✅ | ✅ | * |
+| Build without XNNPACK | ❌ | ❌ | ❌ |
+
+<Info>
+  `canInit` is only `true` when you call `getXnnpackSupport(modelBase64)` with a valid ONNX model. If you omit `modelBase64`, the SDK uses an embedded test model.
+</Info>
+
+## Core ML (iOS)
+
+iOS execution provider that uses Apple Neural Engine when available.
+
+### Check Core ML Support
+
+```typescript
+import { getCoreMlSupport } from 'react-native-sherpa-onnx';
+
+const support = await getCoreMlSupport();
+
+if (support.providerCompiled) {
+  console.log('Core ML available');
+  if (support.hasAccelerator) {
+    console.log('Apple Neural Engine detected');
+  }
+}
+```
+
+### Use Core ML Provider
+
+```typescript
+import { initializeTTS } from 'react-native-sherpa-onnx/tts';
+import { assetModelPath } from 'react-native-sherpa-onnx';
+
+await initializeTTS({
+  modelPath: assetModelPath('models/vits-piper-en_US-lessac-medium'),
+  modelType: 'auto',
+  provider: 'coreml', // Use Core ML
+});
+```
+
+### Core ML Support Matrix
+
+| Situation | `providerCompiled` | `hasAccelerator` | `canInit` |
+|-----------|-------------------|-----------------|----------|
+| iOS 11+, device with ANE (A12+), iOS 15+ | ✅ | ✅ | ❌ |
+| iOS 11+, device without ANE or simulator | ✅ | ❌ | ❌ |
+| Android | ❌ | ❌ | ❌ |
+
+<Info>
+  `canInit` is not implemented for Core ML in this module (always returns `false`). Use `hasAccelerator` to detect Apple Neural Engine availability.
+</Info>
+
+## Testing Custom Models
+
+All acceleration check functions accept an optional `modelBase64` parameter to test a specific model:
+
+```typescript
+import { getQnnSupport } from 'react-native-sherpa-onnx';
+import { readFile } from '@dr.pogodin/react-native-fs';
+
+// Load your model file
+const modelBytes = await readFile('/path/to/encoder.onnx', 'base64');
+
+// Test if this specific model works with QNN
+const support = await getQnnSupport(modelBytes);
+
+if (support.canInit) {
+  console.log('This model is compatible with QNN');
+} else {
+  console.log('This model is not compatible with QNN');
+}
+```
+
+<Note>
+  If you omit `modelBase64`, the SDK uses its own embedded test models to compute `canInit`, so you get a meaningful result without passing anything.
+</Note>
+
+## Choosing a Provider
+
+Here's a decision tree for selecting an execution provider:
+
+```typescript
+import {
+  getQnnSupport,
+  getNnapiSupport,
+  getXnnpackSupport,
+  getCoreMlSupport,
+} from 'react-native-sherpa-onnx';
+import { Platform } from 'react-native';
+
+async function selectBestProvider(): Promise<string> {
+  if (Platform.OS === 'ios') {
+    const coreml = await getCoreMlSupport();
+    if (coreml.hasAccelerator) {
+      return 'coreml'; // Use Neural Engine
+    }
+    const xnnpack = await getXnnpackSupport();
+    if (xnnpack.canInit) {
+      return 'xnnpack'; // CPU-optimized
+    }
+    return 'cpu'; // Fallback
+  }
+
+  // Android
+  const qnn = await getQnnSupport();
+  if (qnn.canInit) {
+    return 'qnn'; // Qualcomm NPU (best performance)
+  }
+
+  const nnapi = await getNnapiSupport();
+  if (nnapi.canInit) {
+    return 'nnapi'; // GPU/DSP/NPU
+  }
+
+  const xnnpack = await getXnnpackSupport();
+  if (xnnpack.canInit) {
+    return 'xnnpack'; // CPU-optimized
+  }
+
+  return 'cpu'; // Fallback
+}
+
+const provider = await selectBestProvider();
+console.log('Selected provider:', provider);
+```
+
+## API Reference
+
+### getAvailableProviders()
+
+Returns list of ONNX Runtime execution providers available in the current build.
+
+```typescript
+function getAvailableProviders(): Promise<string[]>;
+```
+
+**Returns**: Array of provider names (e.g., `['CPU', 'QNN', 'NNAPI']`)
+
+**Example**:
+```typescript
+import { getAvailableProviders } from 'react-native-sherpa-onnx';
+
+const providers = await getAvailableProviders();
+console.log(providers); // ['CPU', 'QNN', 'NNAPI', 'XNNPACK']
+```
+
+### getQnnSupport()
+
+Check QNN (Qualcomm NPU) support.
+
+```typescript
+function getQnnSupport(modelBase64?: string): Promise<AccelerationSupport>;
+```
+
+**Parameters**:
+- `modelBase64` (optional): Base64-encoded ONNX model to test
+
+**Returns**: `AccelerationSupport`
+
+### getNnapiSupport()
+
+Check NNAPI (Android Neural Networks API) support.
+
+```typescript
+function getNnapiSupport(modelBase64?: string): Promise<AccelerationSupport>;
+```
+
+**Parameters**:
+- `modelBase64` (optional): Base64-encoded ONNX model to test
+
+**Returns**: `AccelerationSupport`
+
+### getXnnpackSupport()
+
+Check XNNPACK (CPU-optimized) support.
+
+```typescript
+function getXnnpackSupport(modelBase64?: string): Promise<AccelerationSupport>;
+```
+
+**Parameters**:
+- `modelBase64` (optional): Base64-encoded ONNX model to test
+
+**Returns**: `AccelerationSupport`
+
+### getCoreMlSupport()
+
+Check Core ML (iOS Neural Engine) support.
+
+```typescript
+function getCoreMlSupport(modelBase64?: string): Promise<AccelerationSupport>;
+```
+
+**Parameters**:
+- `modelBase64` (optional): Base64-encoded ONNX model to test
+
+**Returns**: `AccelerationSupport`
+
+## Unsupported Providers
+
+The following providers are not supported in this React Native SDK:
+
+- **CUDA**: NVIDIA GPUs (desktop/server only)
+- **TensorRT**: NVIDIA TensorRT (desktop/server only)
+- **DirectML**: Windows GPU acceleration (React Native doesn't target Windows)
+- **SpacemiT**: Specific NPU hardware not in scope
+
+If you need support for any of these, please [open an issue](https://github.com/anomalyco/react-native-sherpa-onnx).
+
+## Hardware-Specific Models
+
+Models built for hardware-specific runtimes (Rockchip RK35xx, Huawei Ascend/CANN, OM-format 910B/310P3) are not supported:
+
+```typescript
+import { detectSttModel } from 'react-native-sherpa-onnx/stt';
+
+const result = await detectSttModel(
+  fileModelPath('/path/to/rk3588-model')
+);
+
+if (result.isHardwareSpecificUnsupported) {
+  console.error('Model requires unsupported hardware:', result.error);
+  // Show error: "This model requires special hardware and is not supported"
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Model Setup" icon="folder" href="/core/model-setup">
+    Configure and load models from assets or filesystem
+  </Card>
+  <Card title="Model Download" icon="download" href="/core/model-download">
+    Download pre-trained models at runtime
+  </Card>
+  <Card title="STT API" icon="microphone" href="/api/stt">
+    Use execution providers with speech-to-text
+  </Card>
+  <Card title="TTS API" icon="volume" href="/api/tts">
+    Use execution providers with text-to-speech
+  </Card>
+</CardGroup>

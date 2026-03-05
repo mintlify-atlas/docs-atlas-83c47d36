@@ -1,0 +1,571 @@
+---
+title: Performance Optimization
+description: Optimize model size, accuracy, and execution speed for Speech-to-Text and Text-to-Speech
+---
+
+## Overview
+
+Optimizing React Native Sherpa ONNX performance involves balancing model size, accuracy, and inference speed. This guide covers quantization, execution providers, model selection, and best practices.
+
+## Model Size vs Accuracy Tradeoffs
+
+### STT Model Comparison
+
+| Model | Size | Speed | Accuracy | Best For |
+|-------|------|-------|----------|----------|
+| Whisper Tiny | 39MB | ⚡⚡⚡ | ⭐⭐⭐ | Real-time, mobile |
+| Whisper Base | 74MB | ⚡⚡ | ⭐⭐⭐⭐ | Balanced mobile |
+| Whisper Small | 244MB | ⚡ | ⭐⭐⭐⭐⭐ | High accuracy |
+| Whisper Medium | 769MB | 🐌 | ⭐⭐⭐⭐⭐ | Max accuracy |
+| Paraformer (int8) | ~50MB | ⚡⚡⚡ | ⭐⭐⭐⭐ | Fast streaming |
+| Zipformer (small) | ~40MB | ⚡⚡ | ⭐⭐⭐⭐ | Streaming, specific language |
+
+### TTS Model Comparison
+
+| Model | Size | Speed | Quality | Best For |
+|-------|------|-------|---------|----------|
+| VITS Piper (low) | 16MB | ⚡⚡⚡ | ⭐⭐⭐ | Fast playback |
+| VITS Piper (medium) | 63MB | ⚡⚡ | ⭐⭐⭐⭐ | Balanced quality |
+| VITS Coqui | 50-100MB | ⚡⚡ | ⭐⭐⭐⭐⭐ | High quality |
+| Matcha | 100-200MB | ⚡ | ⭐⭐⭐⭐⭐ | Premium quality |
+
+## Quantization (int8)
+
+Quantization reduces model size and improves inference speed with minimal accuracy loss.
+
+### Benefits
+
+<CardGroup cols={3}>
+  <Card title="Size Reduction" icon="compress">
+    ~75% smaller models
+  </Card>
+  <Card title="Faster Inference" icon="bolt">
+    2-4x speedup on CPU
+  </Card>
+  <Card title="Minimal Loss" icon="check">
+    Less than 1% accuracy difference
+  </Card>
+</CardGroup>
+
+### Using Quantized Models
+
+```typescript
+import { createSTT } from 'react-native-sherpa-onnx/stt';
+
+const stt = await createSTT({
+  modelPath: { type: 'asset', path: 'models/whisper-tiny-en' },
+  modelType: 'auto',
+  preferInt8: true, // Automatic int8 selection
+});
+```
+
+### Quantization Options
+
+| `preferInt8` Value | Behavior |
+|-------------------|----------|
+| `true` | Use int8 model if available, fallback to fp32 |
+| `false` | Always use fp32 model |
+| `undefined` (default) | Try int8 first, fallback to fp32 |
+
+### File Detection
+
+When both formats exist:
+```
+models/whisper-tiny/
+├── encoder.onnx          # fp32 version
+├── encoder.int8.onnx     # int8 version (used when preferInt8=true)
+├── decoder.onnx
+├── decoder.int8.onnx
+└── tokens.txt
+```
+
+<Note>
+Quantized models provide the best balance for mobile devices. Use fp32 only when maximum accuracy is critical.
+</Note>
+
+## Execution Provider Selection
+
+### Android Providers
+
+<Tabs>
+  <Tab title="CPU (Default)">
+    **Provider**: `cpu`
+    
+    - ✅ Always available
+    - ✅ Consistent behavior
+    - ❌ Slower than hardware acceleration
+    - **Use when**: Maximum compatibility needed
+    
+    ```typescript
+    const stt = await createSTT({
+      modelPath: { type: 'asset', path: 'models/my-model' },
+      provider: 'cpu',
+    });
+    ```
+  </Tab>
+  
+  <Tab title="XNNPACK">
+    **Provider**: `xnnpack`
+    
+    - ✅ CPU-optimized execution
+    - ✅ 2-3x faster than plain CPU
+    - ✅ No additional setup
+    - **Use when**: CPU-only acceleration needed
+    
+    ```typescript
+    import { getXnnpackSupport } from 'react-native-sherpa-onnx';
+    
+    const support = await getXnnpackSupport();
+    
+    if (support.canInit) {
+      const stt = await createSTT({
+        modelPath: { type: 'asset', path: 'models/my-model' },
+        provider: 'xnnpack',
+      });
+    }
+    ```
+  </Tab>
+  
+  <Tab title="NNAPI">
+    **Provider**: `nnapi`
+    
+    - ✅ GPU/DSP/NPU acceleration
+    - ✅ Available on most Android devices (API 27+)
+    - ⚠️ Performance varies by device
+    - **Use when**: Hardware acceleration available
+    
+    ```typescript
+    import { getNnapiSupport } from 'react-native-sherpa-onnx';
+    
+    const support = await getNnapiSupport();
+    
+    if (support.canInit) {
+      const stt = await createSTT({
+        modelPath: { type: 'asset', path: 'models/my-model' },
+        provider: 'nnapi',
+      });
+    }
+    ```
+  </Tab>
+  
+  <Tab title="QNN (Qualcomm)">
+    **Provider**: `qnn`
+    
+    - ✅ Qualcomm NPU acceleration (Hexagon)
+    - ✅ 5-10x speedup on supported devices
+    - ❌ Requires manual library setup
+    - **Use when**: Maximum performance on Snapdragon devices
+    
+    ```typescript
+    import { getQnnSupport } from 'react-native-sherpa-onnx';
+    
+    const support = await getQnnSupport();
+    
+    if (support.canInit) {
+      const stt = await createSTT({
+        modelPath: { type: 'asset', path: 'models/my-model' },
+        provider: 'qnn',
+      });
+    }
+    ```
+    
+    See [Android Setup - QNN](/guides/android-setup#qnn-qualcomm-npu) for library installation.
+  </Tab>
+</Tabs>
+
+### iOS Providers
+
+<Tabs>
+  <Tab title="CPU (Default)">
+    **Provider**: `cpu`
+    
+    - ✅ Always available
+    - ✅ Consistent behavior
+    - ❌ Slower than Core ML
+    
+    ```typescript
+    const stt = await createSTT({
+      modelPath: { type: 'asset', path: 'models/my-model' },
+      provider: 'cpu',
+    });
+    ```
+  </Tab>
+  
+  <Tab title="Core ML">
+    **Provider**: `coreml`
+    
+    - ✅ Apple Neural Engine (ANE) acceleration
+    - ✅ Available on A12+ devices (iPhone XS+)
+    - ✅ GPU fallback on older devices
+    - **Use when**: Running on iOS devices
+    
+    ```typescript
+    import { getCoreMlSupport } from 'react-native-sherpa-onnx';
+    
+    const support = await getCoreMlSupport();
+    
+    if (support.hasAccelerator) {
+      // Apple Neural Engine available
+      const stt = await createSTT({
+        modelPath: { type: 'asset', path: 'models/my-model' },
+        provider: 'coreml',
+      });
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Provider Selection Strategy
+
+```typescript
+import {
+  getQnnSupport,
+  getNnapiSupport,
+  getXnnpackSupport,
+  getCoreMlSupport,
+} from 'react-native-sherpa-onnx';
+import { Platform } from 'react-native';
+
+async function selectBestProvider(): Promise<string> {
+  if (Platform.OS === 'ios') {
+    const coreml = await getCoreMlSupport();
+    return coreml.hasAccelerator ? 'coreml' : 'cpu';
+  }
+  
+  // Android
+  const qnn = await getQnnSupport();
+  if (qnn.canInit) return 'qnn'; // Best performance
+  
+  const nnapi = await getNnapiSupport();
+  if (nnapi.canInit) return 'nnapi'; // GPU/DSP/NPU
+  
+  const xnnpack = await getXnnpackSupport();
+  if (xnnpack.canInit) return 'xnnpack'; // CPU-optimized
+  
+  return 'cpu'; // Fallback
+}
+
+const provider = await selectBestProvider();
+const stt = await createSTT({
+  modelPath: { type: 'asset', path: 'models/my-model' },
+  provider,
+});
+```
+
+## Threading Configuration
+
+### Number of Threads
+
+Control CPU thread count for inference:
+
+```typescript
+const stt = await createSTT({
+  modelPath: { type: 'asset', path: 'models/whisper-tiny' },
+  numThreads: 4, // Default: 1
+});
+```
+
+### Threading Guidelines
+
+| Device Type | Recommended Threads |
+|-------------|--------------------|
+| Low-end (2-4 cores) | 1-2 |
+| Mid-range (4-6 cores) | 2-4 |
+| High-end (8+ cores) | 4-6 |
+
+<Warning>
+More threads ≠ faster inference. Optimal value depends on model and device. Test different values for your use case.
+</Warning>
+
+## Model Selection Best Practices
+
+### For STT
+
+<AccordionGroup>
+  <Accordion title="Real-time Transcription (Streaming)">
+    **Recommended Models**:
+    - Paraformer (int8) - Fast, accurate
+    - Zipformer (small) - Language-specific
+    - LSTM Transducer - Good latency
+    
+    **Configuration**:
+    ```typescript
+    const stt = await createSTT({
+      modelPath: { type: 'asset', path: 'models/paraformer-zh-en' },
+      modelType: 'paraformer',
+      preferInt8: true,
+      provider: 'xnnpack', // or 'nnapi'/'qnn'
+      numThreads: 2,
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Offline File Transcription">
+    **Recommended Models**:
+    - Whisper Small/Medium - Best accuracy
+    - Paraformer - Fast processing
+    
+    **Configuration**:
+    ```typescript
+    const stt = await createSTT({
+      modelPath: { type: 'asset', path: 'models/whisper-small' },
+      modelType: 'whisper',
+      preferInt8: true,
+      provider: 'qnn', // Maximum acceleration
+      numThreads: 4,
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Multilingual Support">
+    **Recommended Models**:
+    - Whisper (any size) - 99+ languages
+    - SenseVoice - With emotion/punctuation
+    
+    **Configuration**:
+    ```typescript
+    const stt = await createSTT({
+      modelPath: { type: 'asset', path: 'models/whisper-base' },
+      modelType: 'whisper',
+      preferInt8: true,
+      modelOptions: {
+        language: 'auto', // Auto-detect
+      },
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Low-Resource Devices">
+    **Recommended Models**:
+    - Whisper Tiny (int8) - 30MB, fast
+    - Paraformer Small (int8) - Good balance
+    
+    **Configuration**:
+    ```typescript
+    const stt = await createSTT({
+      modelPath: { type: 'asset', path: 'models/whisper-tiny' },
+      modelType: 'whisper',
+      preferInt8: true,
+      provider: 'xnnpack',
+      numThreads: 1,
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### For TTS
+
+<AccordionGroup>
+  <Accordion title="Interactive Applications">
+    **Recommended Models**:
+    - VITS Piper (low/medium) - Fast generation
+    - Streaming TTS - Low latency
+    
+    **Configuration**:
+    ```typescript
+    const tts = await createTTS({
+      modelPath: { type: 'asset', path: 'models/vits-piper-en-low' },
+      modelType: 'vits',
+      numThreads: 2,
+    });
+    
+    // Use streaming for immediate playback
+    await tts.generateSpeechStream(text, { speed: 1.0 }, {
+      onChunk: (chunk) => {
+        // Play immediately
+      },
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="High-Quality Output">
+    **Recommended Models**:
+    - VITS Coqui - Expressive
+    - Matcha - Premium quality
+    
+    **Configuration**:
+    ```typescript
+    const tts = await createTTS({
+      modelPath: { type: 'asset', path: 'models/vits-coqui-en' },
+      modelType: 'vits',
+      numThreads: 4,
+    });
+    
+    const audio = await tts.generateSpeech(text, {
+      speed: 1.0,
+      noiseScale: 0.667,
+      noiseScaleW: 0.8,
+      lengthScale: 1.0,
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Voice Cloning">
+    **Recommended Models**:
+    - Zipvoice - Reference audio support
+    
+    **Configuration**:
+    ```typescript
+    const tts = await createTTS({
+      modelPath: { type: 'asset', path: 'models/zipvoice' },
+      modelType: 'zipvoice',
+      numThreads: 4,
+    });
+    
+    const audio = await tts.generateSpeech(text, {
+      referenceAudio: '/path/to/voice-sample.wav',
+      referenceText: 'Transcript of sample',
+      speed: 1.0,
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Memory Optimization
+
+### Lazy Model Loading
+
+Load models only when needed:
+
+```typescript
+let sttEngine: SttEngine | null = null;
+
+async function transcribe(audioPath: string) {
+  if (!sttEngine) {
+    sttEngine = await createSTT({
+      modelPath: { type: 'asset', path: 'models/whisper-tiny' },
+      preferInt8: true,
+    });
+  }
+  
+  return await sttEngine.transcribeFile(audioPath);
+}
+
+// Cleanup when done
+async function cleanup() {
+  if (sttEngine) {
+    await sttEngine.destroy();
+    sttEngine = null;
+  }
+}
+```
+
+### Model Unloading
+
+Always destroy engines when finished:
+
+```typescript
+try {
+  const stt = await createSTT(...);
+  const result = await stt.transcribeFile(audioPath);
+  return result;
+} finally {
+  await stt.destroy(); // Free native resources
+}
+```
+
+### Play Asset Delivery
+
+Use PAD for large models to reduce APK size:
+
+```typescript
+import { getAssetPackPath } from 'react-native-sherpa-onnx';
+
+const padPath = await getAssetPackPath('sherpa_models');
+if (padPath) {
+  // Models installed via PAD - not in base APK
+  const stt = await createSTT({
+    modelPath: { type: 'file', path: `${padPath}/whisper-medium` },
+    preferInt8: true,
+  });
+}
+```
+
+See [Android Setup - PAD](/guides/android-setup#play-asset-delivery-pad) for configuration.
+
+## Benchmarking
+
+### Measure Inference Time
+
+```typescript
+import { createSTT } from 'react-native-sherpa-onnx/stt';
+
+const stt = await createSTT({
+  modelPath: { type: 'asset', path: 'models/whisper-tiny' },
+  preferInt8: true,
+  provider: 'xnnpack',
+});
+
+const startTime = Date.now();
+const result = await stt.transcribeFile('/path/to/audio.wav');
+const endTime = Date.now();
+
+console.log(`Inference time: ${endTime - startTime}ms`);
+console.log(`Audio duration: ${audioDuration}s`);
+console.log(`Real-time factor: ${(endTime - startTime) / 1000 / audioDuration}x`);
+```
+
+### Compare Providers
+
+```typescript
+const providers = ['cpu', 'xnnpack', 'nnapi', 'qnn'];
+const results: Record<string, number> = {};
+
+for (const provider of providers) {
+  const support = await checkProviderSupport(provider);
+  if (!support) continue;
+  
+  const stt = await createSTT({
+    modelPath: { type: 'asset', path: 'models/whisper-tiny' },
+    provider,
+  });
+  
+  const start = Date.now();
+  await stt.transcribeFile(audioPath);
+  results[provider] = Date.now() - start;
+  
+  await stt.destroy();
+}
+
+console.log('Provider benchmarks:', results);
+// Example: { cpu: 2500, xnnpack: 1200, nnapi: 800, qnn: 300 }
+```
+
+## Best Practices Summary
+
+<Steps>
+  <Step title="Choose the Right Model">
+    Balance size, accuracy, and speed for your use case. Prefer quantized (int8) models.
+  </Step>
+  
+  <Step title="Select Best Provider">
+    Check provider support at runtime. Use QNN > NNAPI > XNNPACK > CPU priority on Android.
+  </Step>
+  
+  <Step title="Configure Threading">
+    Start with 2-4 threads. Benchmark to find optimal value for your device.
+  </Step>
+  
+  <Step title="Manage Memory">
+    Load models lazily. Always call `destroy()` when finished.
+  </Step>
+  
+  <Step title="Use PAD for Large Models">
+    Keep APK size small by using Play Asset Delivery for models >50MB.
+  </Step>
+  
+  <Step title="Benchmark Your Setup">
+    Test different configurations on target devices. Real-world performance varies.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Model Types" icon="database" href="/guides/model-types">
+    Explore all supported STT and TTS models
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/guides/troubleshooting">
+    Solve common performance issues
+  </Card>
+</CardGroup>
