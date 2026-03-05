@@ -1,0 +1,128 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "React Native Sherpa ONNX",
+  "projectDescription": "Offline and streaming speech processing SDK for React Native with STT, TTS, VAD, diarization, and speech enhancement",
+  "theme": "aspen",
+  "primaryColor": "#848c8e",
+  "lightColor": "#11161e",
+  "darkColor": "#cfd0d2",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "core/model-setup",
+              "core/execution-providers",
+              "core/model-download"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/speech-to-text",
+              "features/streaming-stt",
+              "features/text-to-speech",
+              "features/streaming-tts",
+              "features/vad",
+              "features/diarization",
+              "features/enhancement",
+              "features/separation"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/android-setup",
+              "guides/ios-setup",
+              "guides/model-types",
+              "guides/performance",
+              "guides/troubleshooting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core",
+            "pages": [
+              "api/core/utilities",
+              "api/core/types"
+            ]
+          },
+          {
+            "group": "Speech-to-Text",
+            "pages": [
+              "api/stt/create-stt",
+              "api/stt/streaming-stt",
+              "api/stt/types"
+            ]
+          },
+          {
+            "group": "Text-to-Speech",
+            "pages": [
+              "api/tts/create-tts",
+              "api/tts/streaming-tts",
+              "api/tts/types"
+            ]
+          },
+          {
+            "group": "Other",
+            "pages": [
+              "api/vad",
+              "api/diarization",
+              "api/enhancement",
+              "api/separation",
+              "api/download",
+              "api/audio"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Offline Speech-to-Text with multiple model types (Zipformer, Paraformer, Whisper, NeMo CTC, etc.)",
+    "Online (streaming) Speech-to-Text with real-time recognition and partial results",
+    "Text-to-Speech with multiple models (VITS, Matcha, Kokoro, Kitten, etc.)",
+    "Streaming Text-to-Speech with incremental generation",
+    "Hardware acceleration support (CPU, NNAPI, XNNPACK, Core ML, QNN)",
+    "Voice Activity Detection (VAD)",
+    "Speaker Diarization",
+    "Speech Enhancement and Source Separation",
+    "Flexible model loading from assets, file system, or auto-detection",
+    "Full TypeScript support with complete type definitions"
+  ],
+  "publicApiSurface": [
+    "createSTT",
+    "createStreamingSTT",
+    "createTTS",
+    "createStreamingTTS",
+    "detectSttModel",
+    "detectTtsModel",
+    "testSherpaInit",
+    "getQnnSupport",
+    "getNnapiSupport",
+    "getXnnpackSupport",
+    "getCoreMlSupport",
+    "getAvailableProviders",
+    "assetModelPath",
+    "fileModelPath",
+    "autoModelPath",
+    "resolveModelPath",
+    "listAssetModels",
+    "listModelsAtPath"
+  ]
+}
